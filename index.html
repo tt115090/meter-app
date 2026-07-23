@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="仪表管理">
     <link rel="manifest" href="manifest.json">
-    <!-- 二维码扫描库 -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         :root {
@@ -77,10 +76,38 @@
         @media (min-width:768px) { body { padding-bottom:20px; } .bottom-nav { display:none; } .desktop-tabs { display:flex; gap:6px; flex-wrap:wrap; } .desktop-tab { padding:9px 18px; border-radius:20px; font-weight:600; cursor:pointer; border:2px solid transparent; background:transparent; font-size:0.9rem; transition:var(--transition); } .desktop-tab.active { background:#e8f0fe; border-color:var(--primary); color:var(--primary); } }
         @media (max-width:767px) { .desktop-tabs { display:none; } }
         #scanStatusMsg { text-align:center; margin-top:8px; font-size:0.9rem; min-height:24px; }
+        /* 密码弹窗 */
+        #pwdModal {
+            display: none;
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); z-index:2000;
+            justify-content: center; align-items: center;
+        }
+        #pwdModal.active { display:flex; }
+        .pwd-box {
+            background: white; padding: 24px; border-radius: 16px;
+            width: 80%; max-width: 300px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        .pwd-box h3 { margin-bottom:16px; text-align:center; }
+        .pwd-box .form-input { margin-bottom:12px; }
+        .pwd-box .btn-row { display:flex; gap:8px; justify-content:center; }
     </style>
 </head>
 <body>
     <div class="toast-container" id="toastContainer"></div>
+    <!-- 自定义密码弹窗 -->
+    <div id="pwdModal">
+        <div class="pwd-box">
+            <h3>管理员验证</h3>
+            <input type="password" class="form-input" id="pwdInput" placeholder="请输入管理密码">
+            <p id="pwdError" style="color:#d93025; margin-bottom:8px; display:none;">密码错误</p>
+            <div class="btn-row">
+                <button class="btn btn-primary" id="pwdConfirm">确认</button>
+                <button class="btn btn-outline" id="pwdCancel">取消</button>
+            </div>
+        </div>
+    </div>
+
     <div class="top-nav">
         <div class="logo"><div class="icon">📊</div><span>仪表管理系统</span></div>
         <div class="stats-badge">
@@ -180,11 +207,11 @@
     </div>
     <script>
         (function() {
-            // ---------- Supabase 配置（请替换为您的实际值） ----------
+            // ---------- Supabase 配置 ----------
             const SUPABASE_URL = 'https://yxzsestiwiznhsecrnec.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4enNlc3Rpd2l6bmhzZWNybmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MTExNTYsImV4cCI6MjEwMDM4NzE1Nn0.VYwxJqNhxYHMpYoJmef1OR9z1SUL-aUvGK9uEgXtnTI';
 
-            // ---------- 数据操作（通过 REST API） ----------
+            // ---------- 数据操作 ----------
             async function supabaseFetch(path, method = 'GET', body = null) {
                 const url = `${SUPABASE_URL}/rest/v1/${path}`;
                 const headers = {
@@ -196,40 +223,31 @@
                 const options = { method, headers };
                 if (body) options.body = JSON.stringify(body);
                 const res = await fetch(url, options);
-                if (!res.ok) {
-                    const errText = await res.text();
-                    throw new Error(`网络错误: ${res.status} ${errText}`);
-                }
+                if (!res.ok) throw new Error('网络错误: ' + res.status + ' ' + await res.text());
                 return res.json();
             }
 
             async function loadMeters() {
-                const data = await supabaseFetch('meters?select=data', 'GET');
+                const data = await supabaseFetch('meters?select=data');
                 return data.map(row => row.data);
             }
-
             async function saveMeters(meters) {
                 await supabaseFetch('meters?data=not.is.null', 'DELETE');
-                for (const m of meters) {
-                    await supabaseFetch('meters', 'POST', { data: m });
-                }
+                for (const m of meters) await supabaseFetch('meters', 'POST', { data: m });
             }
-
             async function loadRecords() {
-                const data = await supabaseFetch('records?select=data&order=data->>borrowTime.desc', 'GET');
+                const data = await supabaseFetch('records?select=data&order=data->>borrowTime.desc');
                 return data.map(row => row.data);
             }
-
             async function saveRecords(records) {
                 await supabaseFetch('records?data=not.is.null', 'DELETE');
-                for (const r of records) {
-                    await supabaseFetch('records', 'POST', { data: r });
-                }
+                for (const r of records) await supabaseFetch('records', 'POST', { data: r });
             }
 
-            // ---------- 业务逻辑 ----------
+            // ---------- 全局变量 ----------
             const ADMIN_PASSWORD = 'admin123';
             let isAdminAuthenticated = false;
+            let pendingPageId = null;
             let meters = [];
             let records = [];
 
@@ -246,12 +264,35 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
+            // ---------- 密码弹窗 ----------
+            document.getElementById('pwdConfirm').addEventListener('click', () => {
+                const pwd = document.getElementById('pwdInput').value;
+                if (pwd === ADMIN_PASSWORD) {
+                    isAdminAuthenticated = true;
+                    document.getElementById('pwdModal').classList.remove('active');
+                    switchPage(pendingPageId);
+                } else {
+                    document.getElementById('pwdError').style.display = 'block';
+                }
+            });
+            document.getElementById('pwdCancel').addEventListener('click', () => {
+                document.getElementById('pwdModal').classList.remove('active');
+                switchPage('page-dashboard');
+            });
+
+            function showPwdModal(targetPageId) {
+                pendingPageId = targetPageId;
+                document.getElementById('pwdModal').classList.add('active');
+                document.getElementById('pwdInput').value = '';
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdInput').focus();
+            }
+
+            // ---------- 页面导航 ----------
             function switchPage(pageId) {
                 if (pageId === 'page-manage' && !isAdminAuthenticated) {
-                    const pwd = prompt('请输入管理密码：');
-                    if (pwd === null) pageId = 'page-dashboard';
-                    else if (pwd !== ADMIN_PASSWORD) { showToast('密码错误', 'error'); pageId = 'page-dashboard'; }
-                    else isAdminAuthenticated = true;
+                    showPwdModal(pageId);
+                    return;
                 }
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
                 document.getElementById(pageId).classList.add('active');
@@ -265,6 +306,7 @@
                 if (pageId === 'page-records') renderRecords();
                 if (pageId === 'page-manage') renderManageMeterList();
             }
+
             document.getElementById('desktopTabs').addEventListener('click', e => {
                 const tab = e.target.closest('.desktop-tab');
                 if (tab) switchPage(tab.dataset.page);
@@ -280,6 +322,7 @@
                 document.getElementById('borrowedCount').textContent = meters.filter(m => m.status === 'borrowed').length;
             }
 
+            // ---------- 仪表总览 ----------
             function renderDashboard(filter='all', searchTerm='') {
                 const listEl = document.getElementById('meterList'), emptyEl = document.getElementById('emptyMeters');
                 let filtered = meters;
@@ -374,10 +417,7 @@
                         if (fields.year && !meter.year) { meter.year = fields.year; updated = true; }
                         if (fields.dept && !meter.dept) { meter.dept = fields.dept; updated = true; }
                         if (fields.user && !meter.user) { meter.user = fields.user; updated = true; }
-                        if (updated) {
-                            await saveMeters(meters);
-                            showToast('仪表信息已更新', 'info');
-                        }
+                        if (updated) { await saveMeters(meters); showToast('仪表信息已更新', 'info'); }
                     }
 
                     const card = document.getElementById('scanResultCard');
@@ -410,23 +450,13 @@
                             if (!name || !loc) { showToast('请填写借用人姓名和借用地点', 'error'); return; }
                             meter.status = 'borrowed'; meter.location = loc;
                             records.unshift({
-                                id: generateId(),
-                                meterId: meter.assetNo,
-                                assetNo: meter.assetNo,
-                                meterName: meter.name,
-                                borrowerId: id,
-                                borrowerName: name,
-                                borrowLocation: loc,
-                                borrowTime: Date.now(),
-                                returnTime: null,
-                                status: 'borrowed'
+                                id: generateId(), meterId: meter.assetNo, assetNo: meter.assetNo, meterName: meter.name,
+                                borrowerId: id, borrowerName: name, borrowLocation: loc, borrowTime: Date.now(),
+                                returnTime: null, status: 'borrowed'
                             });
-                            await saveMeters(meters);
-                            await saveRecords(records);
+                            await saveMeters(meters); await saveRecords(records);
                             showToast('借用登记成功', 'success');
-                            processAssetQuery(meter.assetNo);
-                            updateStats();
-                            renderDashboard();
+                            processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
                         });
                     } else {
                         const activeRec = records.find(r => r.assetNo === meter.assetNo && r.status === 'borrowed');
@@ -438,31 +468,21 @@
                         formDiv.querySelector('.btn-return-submit').addEventListener('click', async () => {
                             meter.status = 'in-stock';
                             if (activeRec) { activeRec.returnTime = Date.now(); activeRec.status = 'returned'; }
-                            await saveMeters(meters);
-                            await saveRecords(records);
+                            await saveMeters(meters); await saveRecords(records);
                             showToast('归还成功', 'success');
-                            processAssetQuery(meter.assetNo);
-                            updateStats();
-                            renderDashboard();
+                            processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
                         });
                     }
-                } catch (err) {
-                    showToast('处理出错：' + err.message, 'error');
-                }
+                } catch (err) { showToast('处理出错：' + err.message, 'error'); }
             }
 
-            document.getElementById('btnManualQuery').addEventListener('click', () => {
-                processAssetQuery(document.getElementById('manualQrInput').value);
-            });
-            document.getElementById('manualQrInput').addEventListener('keypress', e => {
-                if (e.key === 'Enter') processAssetQuery(e.target.value);
-            });
+            document.getElementById('btnManualQuery').addEventListener('click', () => processAssetQuery(document.getElementById('manualQrInput').value));
+            document.getElementById('manualQrInput').addEventListener('keypress', e => { if (e.key === 'Enter') processAssetQuery(e.target.value); });
 
             // ---------- 摄像头 ----------
             let html5QrCode = null;
             function updateScanStatus(msg, isError=false) {
-                const el = document.getElementById('scanStatusMsg');
-                el.textContent = msg; el.style.color = isError ? '#d93025' : '#1a73e8';
+                const el = document.getElementById('scanStatusMsg'); el.textContent = msg; el.style.color = isError ? '#d93025' : '#1a73e8';
             }
             document.getElementById('btnStartScan').addEventListener('click', () => {
                 document.getElementById('scanPlaceholder').style.display = 'none';
@@ -470,8 +490,7 @@
                 if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
                 html5QrCode.start({ facingMode: "environment" }, { fps: 5, qrbox: { width: 280, height: 280 } },
                     (decodedText) => {
-                        updateScanStatus('✅ 扫描成功！');
-                        showToast('扫描成功', 'success');
+                        updateScanStatus('✅ 扫描成功！'); showToast('扫描成功', 'success');
                         document.getElementById('manualQrInput').value = decodedText;
                         processAssetQuery(decodedText);
                         html5QrCode.stop().then(() => {
@@ -487,29 +506,22 @@
                     document.getElementById('btnStartScan').style.display = 'none';
                     document.getElementById('btnStopScan').style.display = 'inline-flex';
                     updateScanStatus('摄像头已启动，请对准二维码');
-                }).catch(err => {
-                    updateScanStatus('启动失败: ' + (err.message || err), true);
-                    showToast('摄像头启动失败', 'error');
-                });
+                }).catch(err => { updateScanStatus('启动失败: ' + (err.message || err), true); showToast('摄像头启动失败', 'error'); });
             });
             document.getElementById('btnStopScan').addEventListener('click', () => {
-                if (html5QrCode) {
-                    html5QrCode.stop().then(() => {
-                        document.getElementById('btnStartScan').style.display = 'inline-flex';
-                        document.getElementById('btnStopScan').style.display = 'none';
-                        document.getElementById('scanPlaceholder').style.display = 'block';
-                        updateScanStatus('');
-                    }).catch(()=>{});
-                }
+                if (html5QrCode) html5QrCode.stop().then(() => {
+                    document.getElementById('btnStartScan').style.display = 'inline-flex';
+                    document.getElementById('btnStopScan').style.display = 'none';
+                    document.getElementById('scanPlaceholder').style.display = 'block';
+                    updateScanStatus('');
+                }).catch(()=>{});
             });
 
+            // ---------- 记录 ----------
             function renderRecords(searchTerm='') {
                 const listEl = document.getElementById('recordList'), emptyEl = document.getElementById('emptyRecords');
                 let filtered = records;
-                if (searchTerm) {
-                    const t = searchTerm.toLowerCase();
-                    filtered = filtered.filter(r => r.assetNo.toLowerCase().includes(t) || r.borrowerName.toLowerCase().includes(t));
-                }
+                if (searchTerm) { const t = searchTerm.toLowerCase(); filtered = filtered.filter(r => r.assetNo.toLowerCase().includes(t) || r.borrowerName.toLowerCase().includes(t)); }
                 if (filtered.length === 0) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; }
                 else {
                     emptyEl.style.display = 'none';
@@ -533,6 +545,7 @@
                 showToast('导出成功', 'success');
             });
 
+            // ---------- 管理 ----------
             function renderManageMeterList() {
                 const listEl = document.getElementById('manageMeterList');
                 listEl.innerHTML = meters.map(m => `
@@ -563,8 +576,7 @@
                 const assetNo = document.getElementById('formAssetNo').value.trim();
                 if (!assetNo) { showToast('资产号必填', 'error'); return; }
                 const data = {
-                    assetNo,
-                    name: document.getElementById('formName').value.trim(),
+                    assetNo, name: document.getElementById('formName').value.trim(),
                     model: document.getElementById('formModel').value.trim(),
                     serial: document.getElementById('formSerial').value.trim(),
                     year: document.getElementById('formYear').value.trim(),
@@ -577,37 +589,24 @@
                 if (existingIndex >= 0) Object.assign(meters[existingIndex], data);
                 else meters.push(data);
                 await saveMeters(meters);
-                updateStats();
-                renderManageMeterList();
-                renderDashboard();
-                document.getElementById('meterForm').reset();
-                document.getElementById('editMeterId').value = '';
+                updateStats(); renderManageMeterList(); renderDashboard();
+                document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
                 showToast('保存成功', 'success');
             });
-            document.getElementById('btnClearForm').addEventListener('click', () => {
-                document.getElementById('meterForm').reset();
-                document.getElementById('editMeterId').value = '';
-            });
+            document.getElementById('btnClearForm').addEventListener('click', () => { document.getElementById('meterForm').reset(); });
             document.getElementById('btnAddSample').addEventListener('click', async () => {
                 meters = [
                     { assetNo: 'METER-001', name: '精密压力表', model: 'A型-0.1级', serial: 'SN001', year: '2022', dept: '实验室', user: '张三', location: '实验室A-柜3', status: 'in-stock' },
-                    { assetNo: 'METER-002', name: '数字万用表', model: 'B型-FLUKE', serial: 'SN002', year: '2023', dept: '研发部', user: '李四', location: '实验室B-柜1', status: 'in-stock' },
+                    { assetNo: 'METER-002', name: '数字万用表', model: 'B型-FLUKE', serial: 'SN002', year: '2023', dept: '研发部', user: '李四', location: '实验室B-柜1', status: 'in-stock' }
                 ];
-                await saveMeters(meters);
-                updateStats();
-                renderManageMeterList();
-                renderDashboard();
+                await saveMeters(meters); updateStats(); renderManageMeterList(); renderDashboard();
                 showToast('已添加示例仪表', 'info');
             });
             document.getElementById('btnClearAll').addEventListener('click', async () => {
                 if (confirm('确定清空所有仪表和记录吗？')) {
                     meters = []; records = [];
-                    await saveMeters(meters);
-                    await saveRecords(records);
-                    updateStats();
-                    renderManageMeterList();
-                    renderDashboard();
-                    renderRecords();
+                    await saveMeters(meters); await saveRecords(records);
+                    updateStats(); renderManageMeterList(); renderDashboard(); renderRecords();
                     showToast('已清空', 'warning');
                 }
             });
@@ -618,37 +617,20 @@
                     meters = await loadMeters();
                     records = await loadRecords();
                     if (meters.length === 0) {
-                        meters = [
-                            { assetNo: 'METER-001', name: '精密压力表', model: 'A型-0.1级', serial: 'SN001', year: '2022', dept: '实验室', user: '张三', location: '实验室A-柜3', status: 'in-stock' },
-                        ];
+                        meters = [{ assetNo: 'METER-001', name: '精密压力表', model: 'A型-0.1级', serial: 'SN001', year: '2022', dept: '实验室', user: '张三', location: '实验室A-柜3', status: 'in-stock' }];
                         await saveMeters(meters);
                     }
-                } catch (err) {
-                    showToast('初始化失败: ' + err.message, 'error');
-                    console.error(err);
-                    return;
-                }
-                updateStats();
-                renderDashboard();
-                renderRecords();
-                renderManageMeterList();
+                } catch (err) { showToast('初始化失败: ' + err.message, 'error'); return; }
+                updateStats(); renderDashboard(); renderRecords(); renderManageMeterList();
                 handleUrlParams();
             }
-
             function handleUrlParams() {
                 const params = new URLSearchParams(window.location.search);
                 const asset = params.get('asset');
-                if (asset) {
-                    switchPage('page-scan');
-                    document.getElementById('manualQrInput').value = asset;
-                    processAssetQuery(asset);
-                }
+                if (asset) { switchPage('page-scan'); document.getElementById('manualQrInput').value = asset; processAssetQuery(asset); }
             }
-
             window.addEventListener('DOMContentLoaded', initApp);
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(()=>{});
-            }
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
         })();
     </script>
 </body>
