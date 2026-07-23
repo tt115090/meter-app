@@ -76,26 +76,17 @@
         @media (min-width:768px) { body { padding-bottom:20px; } .bottom-nav { display:none; } .desktop-tabs { display:flex; gap:6px; flex-wrap:wrap; } .desktop-tab { padding:9px 18px; border-radius:20px; font-weight:600; cursor:pointer; border:2px solid transparent; background:transparent; font-size:0.9rem; transition:var(--transition); } .desktop-tab.active { background:#e8f0fe; border-color:var(--primary); color:var(--primary); } }
         @media (max-width:767px) { .desktop-tabs { display:none; } }
         #scanStatusMsg { text-align:center; margin-top:8px; font-size:0.9rem; min-height:24px; }
-        /* 密码弹窗 */
-        #pwdModal {
-            display: none;
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(0,0,0,0.5); z-index:2000;
-            justify-content: center; align-items: center;
-        }
+        #pwdModal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:2000; justify-content: center; align-items: center; }
         #pwdModal.active { display:flex; }
-        .pwd-box {
-            background: white; padding: 24px; border-radius: 16px;
-            width: 80%; max-width: 300px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-        }
+        .pwd-box { background: white; padding: 24px; border-radius: 16px; width: 80%; max-width: 300px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
         .pwd-box h3 { margin-bottom:16px; text-align:center; }
         .pwd-box .form-input { margin-bottom:12px; }
         .pwd-box .btn-row { display:flex; gap:8px; justify-content:center; }
+        .record-actions { margin-top:8px; display:flex; gap:8px; }
     </style>
 </head>
 <body>
     <div class="toast-container" id="toastContainer"></div>
-    <!-- 自定义密码弹窗 -->
     <div id="pwdModal">
         <div class="pwd-box">
             <h3>管理员验证</h3>
@@ -207,11 +198,9 @@
     </div>
     <script>
         (function() {
-            // ---------- Supabase 配置 ----------
             const SUPABASE_URL = 'https://yxzsestiwiznhsecrnec.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4enNlc3Rpd2l6bmhzZWNybmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MTExNTYsImV4cCI6MjEwMDM4NzE1Nn0.VYwxJqNhxYHMpYoJmef1OR9z1SUL-aUvGK9uEgXtnTI';
 
-            // ---------- 数据操作 ----------
             async function supabaseFetch(path, method = 'GET', body = null) {
                 const url = `${SUPABASE_URL}/rest/v1/${path}`;
                 const headers = {
@@ -244,7 +233,6 @@
                 for (const r of records) await supabaseFetch('records', 'POST', { data: r });
             }
 
-            // ---------- 全局变量 ----------
             const ADMIN_PASSWORD = 'admin123';
             let isAdminAuthenticated = false;
             let pendingPageId = null;
@@ -264,7 +252,6 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
-            // ---------- 密码弹窗 ----------
             document.getElementById('pwdConfirm').addEventListener('click', () => {
                 const pwd = document.getElementById('pwdInput').value;
                 if (pwd === ADMIN_PASSWORD) {
@@ -279,7 +266,6 @@
                 document.getElementById('pwdModal').classList.remove('active');
                 switchPage('page-dashboard');
             });
-
             function showPwdModal(targetPageId) {
                 pendingPageId = targetPageId;
                 document.getElementById('pwdModal').classList.add('active');
@@ -288,7 +274,6 @@
                 document.getElementById('pwdInput').focus();
             }
 
-            // ---------- 页面导航 ----------
             function switchPage(pageId) {
                 if (pageId === 'page-manage' && !isAdminAuthenticated) {
                     showPwdModal(pageId);
@@ -322,7 +307,6 @@
                 document.getElementById('borrowedCount').textContent = meters.filter(m => m.status === 'borrowed').length;
             }
 
-            // ---------- 仪表总览 ----------
             function renderDashboard(filter='all', searchTerm='') {
                 const listEl = document.getElementById('meterList'), emptyEl = document.getElementById('emptyMeters');
                 let filtered = meters;
@@ -444,6 +428,11 @@
                                 <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
                             </div>`;
                         formDiv.querySelector('.btn-borrow-submit').addEventListener('click', async () => {
+                            // 再次检查仪表状态（防止并发）
+                            if (meter.status !== 'in-stock') {
+                                showToast('该仪表已被他人借用，请刷新后重试', 'error');
+                                return;
+                            }
                             const name = formDiv.querySelector('.borrow-name').value.trim();
                             const id = formDiv.querySelector('.borrow-id').value.trim();
                             const loc = formDiv.querySelector('.borrow-location').value.trim();
@@ -517,7 +506,26 @@
                 }).catch(()=>{});
             });
 
-            // ---------- 记录 ----------
+            // ---------- 借用记录（含删除功能） ----------
+            async function deleteRecord(recordId) {
+                if (!confirm('确定删除该借用记录吗？')) return;
+                const recordIndex = records.findIndex(r => r.id === recordId);
+                if (recordIndex === -1) return;
+                const record = records[recordIndex];
+                // 如果该记录是借用中，需将对应仪表恢复为在库
+                if (record.status === 'borrowed') {
+                    const meter = meters.find(m => m.assetNo === record.assetNo);
+                    if (meter) meter.status = 'in-stock';
+                }
+                records.splice(recordIndex, 1);
+                await saveRecords(records);
+                await saveMeters(meters);
+                updateStats();
+                renderDashboard();
+                renderRecords();
+                showToast('记录已删除', 'success');
+            }
+
             function renderRecords(searchTerm='') {
                 const listEl = document.getElementById('recordList'), emptyEl = document.getElementById('emptyRecords');
                 let filtered = records;
@@ -532,9 +540,16 @@
                             <div>借用地点: ${r.borrowLocation}</div>
                             <div>借用时间: ${formatTime(r.borrowTime)}</div>
                             <div>归还时间: ${r.returnTime ? formatTime(r.returnTime) : '<span style="color:#e67e22">未归还</span>'}</div>
+                            <div class="record-actions">
+                                <button class="btn btn-danger btn-sm" onclick="deleteRecord('${r.id}')">🗑 删除</button>
+                            </div>
                         </div>`).join('');
                 }
             }
+
+            // 将 deleteRecord 暴露为全局以便 onclick 调用
+            window.deleteRecord = deleteRecord;
+
             document.getElementById('searchRecord').addEventListener('input', e => renderRecords(e.target.value));
             document.getElementById('btnExportCSV').addEventListener('click', () => {
                 let csv = '资产号,仪表名称,借用人,借用人编号,借用地点,借用时间,归还时间,状态\n';
@@ -611,7 +626,6 @@
                 }
             });
 
-            // ---------- 初始化 ----------
             async function initApp() {
                 try {
                     meters = await loadMeters();
