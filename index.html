@@ -4,96 +4,77 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>仪表资产扫码管理系统</title>
-
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="仪表管理">
     <link rel="manifest" href="manifest.json">
-
-    <!-- 二维码扫描库 -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
     <style>
         :root {
-            --primary: #1a73e8;
-            --primary-dark: #1557b0;
-            --success: #0d904f;
-            --warning: #e6a817;
-            --danger: #d93025;
-            --bg: #f5f6f8;
-            --card: #ffffff;
-            --text: #1f1f1f;
-            --text-secondary: #5f6368;
-            --border: #e0e0e0;
-            --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            --radius: 14px;
-            --radius-sm: 10px;
-            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            --bottom-nav-height: 68px;
+            --primary: #1a73e8; --primary-dark: #1557b0; --success: #0d904f; --warning: #e6a817; --danger: #d93025;
+            --bg: #f5f6f8; --card: #ffffff; --text: #1f1f1f; --text-secondary: #5f6368; --border: #e0e0e0;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08); --radius: 14px; --radius-sm: 10px;
+            --transition: 0.25s cubic-bezier(0.4,0,0.2,1); --bottom-nav-height: 68px;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             background: var(--bg); color: var(--text); min-height: 100vh;
             -webkit-tap-highlight-color: transparent; padding-bottom: calc(var(--bottom-nav-height) + 20px);
         }
-        .top-nav {
-            background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px;
-            position: sticky; top: 0; z-index: 100; display: flex; align-items: center;
-            justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-        }
-        .top-nav .logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; color: var(--primary); }
-        .top-nav .logo .icon { width: 38px; height: 38px; background: linear-gradient(135deg, #1a73e8, #4a9af5); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #fff; }
-        .top-nav .stats-badge { display: flex; gap: 12px; font-size: 0.85rem; color: var(--text-secondary); }
-        .top-nav .stats-badge span { background: #f0f4ff; padding: 6px 12px; border-radius: 20px; font-weight: 600; color: var(--primary); white-space: nowrap; font-size: 0.8rem; }
-        .top-nav .stats-badge .borrowed-count { background: #fff3e0; color: #e67e22; }
-        .main-content { max-width: 800px; margin: 0 auto; padding: 16px; }
-        .page { display: none; animation: fadeSlideIn 0.3s ease; }
-        .page.active { display: block; }
-        @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        .card { background: var(--card); border-radius: var(--radius); padding: 18px 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: var(--transition); }
-        .card:active { transform: scale(0.985); }
-        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
-        .card-title { font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-        .dot.in-stock { background: #0d904f; } .dot.borrowed { background: #e67e22; animation: pulse 1.6s infinite; }
+        .top-nav { background:var(--card); border-bottom:1px solid var(--border); padding:12px 16px; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+        .top-nav .logo { display:flex; align-items:center; gap:10px; font-size:1.2rem; font-weight:700; color:var(--primary); }
+        .top-nav .logo .icon { width:38px; height:38px; background:linear-gradient(135deg,#1a73e8,#4a9af5); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; color:#fff; }
+        .top-nav .stats-badge { display:flex; gap:12px; font-size:0.85rem; color:var(--text-secondary); }
+        .top-nav .stats-badge span { background:#f0f4ff; padding:6px 12px; border-radius:20px; font-weight:600; color:var(--primary); white-space:nowrap; font-size:0.8rem; }
+        .top-nav .stats-badge .borrowed-count { background:#fff3e0; color:#e67e22; }
+        .main-content { max-width:800px; margin:0 auto; padding:16px; }
+        .page { display:none; animation:fadeSlideIn 0.3s ease; }
+        .page.active { display:block; }
+        @keyframes fadeSlideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .card { background:var(--card); border-radius:var(--radius); padding:18px 16px; margin-bottom:14px; box-shadow:var(--shadow); border:1px solid var(--border); transition:var(--transition); }
+        .card:active { transform:scale(0.985); }
+        .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+        .card-title { font-size:1.05rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+        .dot { width:10px; height:10px; border-radius:50%; display:inline-block; flex-shrink:0; }
+        .dot.in-stock { background:#0d904f; } .dot.borrowed { background:#e67e22; animation:pulse 1.6s infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
-        .meter-item { display: flex; align-items: center; gap: 14px; padding: 14px 12px; border-radius: var(--radius-sm); background: #fafbfc; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; transition: var(--transition); flex-wrap: wrap; }
-        .meter-item:hover { background: #f0f4ff; border-color: #c5d5f7; }
-        .meter-item .meter-avatar { width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, #e8f0fe, #d2e3fc); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; color: #1a73e8; }
-        .meter-item .meter-info { flex: 1; min-width: 140px; }
-        .meter-item .meter-name { font-weight: 600; font-size: 0.95rem; }
-        .meter-item .meter-asset { font-size: 0.78rem; color: var(--text-secondary); }
-        .meter-status-tag { padding: 5px 10px; border-radius: 15px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
-        .tag-in-stock { background: #e6f4ea; color: #0d8040; } .tag-borrowed { background: #fff3e0; color: #c7691a; }
-        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 22px; font-size: 0.9rem; font-weight: 600; border: none; cursor: pointer; transition: var(--transition); white-space: nowrap; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
-        .btn:active { transform: scale(0.94); opacity: 0.85; }
-        .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(26,115,232,0.3); }
-        .btn-outline { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
-        .btn-success { background: var(--success); color: #fff; } .btn-danger { background: var(--danger); color: #fff; }
-        .btn-sm { padding: 6px 14px; font-size: 0.8rem; border-radius: 16px; }
-        .btn-block { width: 100%; justify-content: center; }
-        .form-group { margin-bottom: 14px; }
-        .form-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: var(--text-secondary); }
-        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 2px solid #e0e0e0; font-size: 0.95rem; font-family: inherit; background: #fafbfc; color: var(--text); -webkit-appearance: none; appearance: none; }
-        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(26,115,232,0.08); }
-        #qr-reader { width: 100%; max-width: 500px; margin: 0 auto; border-radius: var(--radius); overflow: hidden; border: 2px dashed var(--border); }
-        .scan-placeholder { text-align: center; padding: 30px 20px; color: var(--text-secondary); background: #fafbfc; border-radius: var(--radius); border: 2px dashed #d0d0d0; }
-        .toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-        .toast { padding: 12px 20px; border-radius: 25px; color: #fff; font-weight: 600; font-size: 0.9rem; animation: toastIn 0.35s ease, toastOut 0.35s ease 2.2s forwards; pointer-events: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.2); text-align: center; max-width: 90vw; }
-        .toast.success { background: #0d904f; } .toast.error { background: #d93025; } .toast.info { background: #1a73e8; }
-        @keyframes toastIn { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -2px 12px rgba(0,0,0,0.06); height: var(--bottom-nav-height); }
-        .bottom-nav .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: var(--text-secondary); font-size: 0.7rem; font-weight: 500; border: none; background: transparent; padding: 6px 4px; -webkit-tap-highlight-color: transparent; }
-        .bottom-nav .nav-item .nav-icon { font-size: 1.5rem; }
-        .bottom-nav .nav-item.active { color: var(--primary); }
-        .filter-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-        .filter-tag { padding: 7px 15px; border-radius: 18px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 2px solid #e0e0e0; background: #fff; transition: var(--transition); white-space: nowrap; -webkit-user-select: none; user-select: none; }
-        .filter-tag.active { background: #e8f0fe; border-color: var(--primary); color: var(--primary); }
-        .empty-state { text-align: center; padding: 50px 20px; color: #aaa; }
-        @media (min-width: 768px) { body { padding-bottom: 20px; } .bottom-nav { display: none; } .desktop-tabs { display: flex; gap: 6px; flex-wrap: wrap; } .desktop-tab { padding: 9px 18px; border-radius: 20px; font-weight: 600; cursor: pointer; border: 2px solid transparent; background: transparent; font-size: 0.9rem; transition: var(--transition); } .desktop-tab.active { background: #e8f0fe; border-color: var(--primary); color: var(--primary); } }
-        @media (max-width: 767px) { .desktop-tabs { display: none; } }
+        .meter-item { display:flex; align-items:center; gap:14px; padding:14px 12px; border-radius:var(--radius-sm); background:#fafbfc; border:1px solid #eee; margin-bottom:8px; cursor:pointer; transition:var(--transition); flex-wrap:wrap; }
+        .meter-item:hover { background:#f0f4ff; border-color:#c5d5f7; }
+        .meter-item .meter-avatar { width:44px; height:44px; border-radius:10px; background:linear-gradient(135deg,#e8f0fe,#d2e3fc); display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; color:#1a73e8; }
+        .meter-item .meter-info { flex:1; min-width:140px; }
+        .meter-item .meter-name { font-weight:600; font-size:0.95rem; }
+        .meter-item .meter-asset { font-size:0.78rem; color:var(--text-secondary); }
+        .meter-status-tag { padding:5px 10px; border-radius:15px; font-size:0.75rem; font-weight:600; white-space:nowrap; }
+        .tag-in-stock { background:#e6f4ea; color:#0d8040; } .tag-borrowed { background:#fff3e0; color:#c7691a; }
+        .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 18px; border-radius:22px; font-size:0.9rem; font-weight:600; border:none; cursor:pointer; transition:var(--transition); white-space:nowrap; touch-action:manipulation; -webkit-user-select:none; user-select:none; }
+        .btn:active { transform:scale(0.94); opacity:0.85; }
+        .btn-primary { background:var(--primary); color:#fff; box-shadow:0 3px 10px rgba(26,115,232,0.3); }
+        .btn-outline { background:#fff; color:var(--primary); border:2px solid var(--primary); }
+        .btn-success { background:var(--success); color:#fff; } .btn-danger { background:var(--danger); color:#fff; }
+        .btn-sm { padding:6px 14px; font-size:0.8rem; border-radius:16px; }
+        .btn-block { width:100%; justify-content:center; }
+        .form-group { margin-bottom:14px; }
+        .form-label { display:block; font-size:0.85rem; font-weight:600; margin-bottom:5px; color:var(--text-secondary); }
+        .form-input,.form-select,.form-textarea { width:100%; padding:12px 14px; border-radius:var(--radius-sm); border:2px solid #e0e0e0; font-size:0.95rem; font-family:inherit; background:#fafbfc; color:var(--text); -webkit-appearance:none; appearance:none; }
+        .form-input:focus,.form-select:focus,.form-textarea:focus { outline:none; border-color:var(--primary); background:#fff; box-shadow:0 0 0 4px rgba(26,115,232,0.08); }
+        #qr-reader { width:100%; max-width:500px; margin:0 auto; border-radius:var(--radius); overflow:hidden; border:2px dashed var(--border); }
+        .scan-placeholder { text-align:center; padding:30px 20px; color:var(--text-secondary); background:#fafbfc; border-radius:var(--radius); border:2px dashed #d0d0d0; }
+        .toast-container { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+        .toast { padding:12px 20px; border-radius:25px; color:#fff; font-weight:600; font-size:0.9rem; animation:toastIn 0.35s ease, toastOut 0.35s ease 2.2s forwards; pointer-events:auto; box-shadow:0 8px 24px rgba(0,0,0,0.2); text-align:center; max-width:90vw; }
+        .toast.success { background:#0d904f; } .toast.error { background:#d93025; } .toast.info { background:#1a73e8; }
+        @keyframes toastIn { from { opacity:0; transform:translateY(-30px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(-20px); } }
+        .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--border); display:flex; z-index:100; box-shadow:0 -2px 12px rgba(0,0,0,0.06); height:var(--bottom-nav-height); }
+        .bottom-nav .nav-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; color:var(--text-secondary); font-size:0.7rem; font-weight:500; border:none; background:transparent; padding:6px 4px; -webkit-tap-highlight-color:transparent; }
+        .bottom-nav .nav-item .nav-icon { font-size:1.5rem; }
+        .bottom-nav .nav-item.active { color:var(--primary); }
+        .filter-tags { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+        .filter-tag { padding:7px 15px; border-radius:18px; font-size:0.8rem; font-weight:600; cursor:pointer; border:2px solid #e0e0e0; background:#fff; transition:var(--transition); white-space:nowrap; -webkit-user-select:none; user-select:none; }
+        .filter-tag.active { background:#e8f0fe; border-color:var(--primary); color:var(--primary); }
+        .empty-state { text-align:center; padding:50px 20px; color:#aaa; }
+        @media (min-width:768px) { body { padding-bottom:20px; } .bottom-nav { display:none; } .desktop-tabs { display:flex; gap:6px; flex-wrap:wrap; } .desktop-tab { padding:9px 18px; border-radius:20px; font-weight:600; cursor:pointer; border:2px solid transparent; background:transparent; font-size:0.9rem; transition:var(--transition); } .desktop-tab.active { background:#e8f0fe; border-color:var(--primary); color:var(--primary); } }
+        @media (max-width:767px) { .desktop-tabs { display:none; } }
     </style>
 </head>
 <body>
@@ -112,7 +93,6 @@
             <button class="desktop-tab" data-page="page-manage">⚙️ 管理</button>
         </div>
     </div>
-
     <div class="main-content">
         <div class="page active" id="page-dashboard">
             <div class="filter-tags">
@@ -185,17 +165,14 @@
             </div>
         </div>
     </div>
-
     <div class="bottom-nav" id="bottomNav">
         <button class="nav-item active" data-page="page-dashboard"><span class="nav-icon">📋</span>仪表总览</button>
         <button class="nav-item" data-page="page-scan"><span class="nav-icon">📷</span>扫码操作</button>
         <button class="nav-item" data-page="page-records"><span class="nav-icon">📝</span>借用记录</button>
         <button class="nav-item" data-page="page-manage"><span class="nav-icon">⚙️</span>管理</button>
     </div>
-
     <script>
         (function() {
-            // ---------- 数据存储 ----------
             const STORAGE_METERS = 'meter_system_meters';
             const STORAGE_RECORDS = 'meter_system_records';
 
@@ -254,7 +231,6 @@
                 if (pageId === 'page-records') renderRecords();
                 if (pageId === 'page-manage') renderManageMeterList();
             }
-
             document.getElementById('desktopTabs').addEventListener('click', e => {
                 const tab = e.target.closest('.desktop-tab');
                 if (tab) switchPage(tab.dataset.page);
@@ -270,7 +246,6 @@
                 document.getElementById('borrowedCount').textContent = meters.filter(m => m.status === 'borrowed').length;
             }
 
-            // ---------- 仪表总览 ----------
             function renderDashboard(filter='all', searchTerm='') {
                 const listEl = document.getElementById('meterList'), emptyEl = document.getElementById('emptyMeters');
                 let filtered = meters;
@@ -299,7 +274,6 @@
                 }
                 updateStats();
             }
-
             document.querySelector('#page-dashboard .filter-tags').addEventListener('click', e => {
                 if (e.target.classList.contains('filter-tag')) {
                     document.querySelectorAll('#page-dashboard .filter-tag').forEach(t => t.classList.remove('active'));
@@ -312,94 +286,91 @@
                 renderDashboard(f, e.target.value);
             });
 
-            // ---------- 核心：智能解析资产号 ----------
+            // ---------- 核心：带错误提示的处理函数 ----------
             function processAssetQuery(rawText) {
-                rawText = rawText.trim();
-                if (!rawText) { showToast('请输入或扫描资产信息', 'error'); return; }
-                let assetNo = rawText;
-
-                // 尝试 JSON
-                try { const j = JSON.parse(rawText); if (j.assetNo) assetNo = j.assetNo; } catch(e) {}
-
-                // 从文本中提取“企业编号：”
-                const idMatch = rawText.match(/企业编号[：:]\s*(\S+)/);
-                if (idMatch) {
-                    assetNo = idMatch[1].trim();
-                    const nameMatch = rawText.match(/名称[：:]\s*(\S+)/);
-                    const personMatch = rawText.match(/使用人[：:]\s*(\S+)/);
-                    const deptMatch = rawText.match(/使用部门[：:]\s*(\S+)/);
-
-                    let meter = meters.find(m => m.assetNo === assetNo);
-                    if (!meter) {
-                        meter = {
-                            id: generateId(),
-                            assetNo: assetNo,
-                            name: nameMatch ? nameMatch[1] : '',
-                            type: '',
-                            responsible: personMatch ? personMatch[1] : '',
-                            location: deptMatch ? deptMatch[1] : '',
-                            status: 'in-stock'
-                        };
-                        meters.push(meter);
-                        saveMeters(meters);
-                        updateStats();
-                        renderDashboard();
-                        showToast('自动添加了新仪表：' + assetNo, 'info');
-                    } else {
-                        if (nameMatch && !meter.name) meter.name = nameMatch[1];
-                        if (personMatch && !meter.responsible) meter.responsible = personMatch[1];
-                        if (deptMatch && !meter.location) meter.location = deptMatch[1];
-                        saveMeters(meters);
+                try {
+                    rawText = rawText.trim();
+                    showToast('收到文本：' + rawText.substring(0, 50), 'info'); // 调试提示
+                    if (!rawText) { showToast('内容为空', 'error'); return; }
+                    let assetNo = rawText;
+                    try { const j = JSON.parse(rawText); if (j.assetNo) assetNo = j.assetNo; } catch(e) {}
+                    
+                    const idMatch = rawText.match(/企业编号[：:]\s*(\S+)/);
+                    if (idMatch) {
+                        assetNo = idMatch[1].trim();
+                        const nameMatch = rawText.match(/名称[：:]\s*(\S+)/);
+                        const personMatch = rawText.match(/使用人[：:]\s*(\S+)/);
+                        const deptMatch = rawText.match(/使用部门[：:]\s*(\S+)/);
+                        let meter = meters.find(m => m.assetNo === assetNo);
+                        if (!meter) {
+                            meter = {
+                                id: generateId(), assetNo,
+                                name: nameMatch ? nameMatch[1] : '',
+                                type: '', responsible: personMatch ? personMatch[1] : '',
+                                location: deptMatch ? deptMatch[1] : '', status: 'in-stock'
+                            };
+                            meters.push(meter); saveMeters(meters);
+                            updateStats(); renderDashboard();
+                            showToast('自动添加了新仪表：' + assetNo, 'success');
+                        } else {
+                            if (nameMatch && !meter.name) meter.name = nameMatch[1];
+                            if (personMatch && !meter.responsible) meter.responsible = personMatch[1];
+                            if (deptMatch && !meter.location) meter.location = deptMatch[1];
+                            saveMeters(meters);
+                        }
                     }
-                }
 
-                const meter = meters.find(m => m.assetNo === assetNo);
-                const card = document.getElementById('scanResultCard');
-                if (!meter) { showToast(`未找到资产号: ${assetNo}`, 'error'); card.style.display = 'none'; return; }
+                    const meter = meters.find(m => m.assetNo === assetNo);
+                    const card = document.getElementById('scanResultCard');
+                    if (!meter) { showToast(`未找到资产号: ${assetNo}`, 'error'); card.style.display = 'none'; return; }
 
-                card.style.display = 'block';
-                document.getElementById('scanResultTitle').textContent = `📟 ${meter.name || meter.assetNo}`;
-                document.getElementById('scanResultStatus').innerHTML = meter.status === 'in-stock' ? '<span class="tag-in-stock">在库</span>' : '<span class="tag-borrowed">借出中</span>';
-                document.getElementById('scanResultInfo').innerHTML = `
-                    <p><strong>资产号：</strong>${meter.assetNo}</p>
-                    <p><strong>名称：</strong>${meter.name||'-'}</p>
-                    <p><strong>责任人：</strong>${meter.responsible||'-'}</p>
-                    <p><strong>位置：</strong>${meter.location||'-'}</p>`;
+                    card.style.display = 'block';
+                    document.getElementById('scanResultTitle').textContent = `📟 ${meter.name || meter.assetNo}`;
+                    document.getElementById('scanResultStatus').innerHTML = meter.status === 'in-stock' ? '<span class="tag-in-stock">在库</span>' : '<span class="tag-borrowed">借出中</span>';
+                    document.getElementById('scanResultInfo').innerHTML = `
+                        <p><strong>资产号：</strong>${meter.assetNo}</p>
+                        <p><strong>名称：</strong>${meter.name||'-'}</p>
+                        <p><strong>责任人：</strong>${meter.responsible||'-'}</p>
+                        <p><strong>位置：</strong>${meter.location||'-'}</p>`;
 
-                const formDiv = document.getElementById('scanActionForm');
-                if (meter.status === 'in-stock') {
-                    formDiv.innerHTML = `
-                        <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-                            <div class="form-group"><label class="form-label">借用人姓名 *</label><input type="text" class="form-input borrow-name" placeholder="姓名"></div>
-                            <div class="form-group"><label class="form-label">借用人编号</label><input type="text" class="form-input borrow-id" placeholder="工号"></div>
-                            <div class="form-group"><label class="form-label">借用地点 *</label><input type="text" class="form-input borrow-location" placeholder="例如：3号车间"></div>
-                            <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
-                        </div>`;
-                    formDiv.querySelector('.btn-borrow-submit').addEventListener('click', () => {
-                        const name = formDiv.querySelector('.borrow-name').value.trim();
-                        const id = formDiv.querySelector('.borrow-id').value.trim();
-                        const loc = formDiv.querySelector('.borrow-location').value.trim();
-                        if (!name || !loc) { showToast('请填写借用人姓名和借用地点', 'error'); return; }
-                        meter.status = 'borrowed'; meter.location = loc;
-                        records.unshift({ id: generateId(), meterId: meter.id, assetNo: meter.assetNo, meterName: meter.name, borrowerId: id, borrowerName: name, borrowLocation: loc, borrowTime: Date.now(), returnTime: null, status: 'borrowed' });
-                        saveRecords(records); saveMeters(meters);
-                        showToast('借用登记成功', 'success');
-                        processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
-                    });
-                } else {
-                    const activeRec = records.find(r => r.meterId === meter.id && r.status === 'borrowed');
-                    formDiv.innerHTML = `
-                        <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-                            <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'}</p>
-                            <button class="btn btn-success btn-block btn-return-submit">🔄 归还仪表</button>
-                        </div>`;
-                    formDiv.querySelector('.btn-return-submit').addEventListener('click', () => {
-                        meter.status = 'in-stock';
-                        if (activeRec) { activeRec.returnTime = Date.now(); activeRec.status = 'returned'; }
-                        saveRecords(records); saveMeters(meters);
-                        showToast('归还成功', 'success');
-                        processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
-                    });
+                    const formDiv = document.getElementById('scanActionForm');
+                    if (meter.status === 'in-stock') {
+                        formDiv.innerHTML = `
+                            <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+                                <div class="form-group"><label class="form-label">借用人姓名 *</label><input type="text" class="form-input borrow-name" placeholder="姓名"></div>
+                                <div class="form-group"><label class="form-label">借用人编号</label><input type="text" class="form-input borrow-id" placeholder="工号"></div>
+                                <div class="form-group"><label class="form-label">借用地点 *</label><input type="text" class="form-input borrow-location" placeholder="例如：3号车间"></div>
+                                <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
+                            </div>`;
+                        formDiv.querySelector('.btn-borrow-submit').addEventListener('click', () => {
+                            const name = formDiv.querySelector('.borrow-name').value.trim();
+                            const id = formDiv.querySelector('.borrow-id').value.trim();
+                            const loc = formDiv.querySelector('.borrow-location').value.trim();
+                            if (!name || !loc) { showToast('请填写借用人姓名和借用地点', 'error'); return; }
+                            meter.status = 'borrowed'; meter.location = loc;
+                            records.unshift({ id: generateId(), meterId: meter.id, assetNo: meter.assetNo, meterName: meter.name, borrowerId: id, borrowerName: name, borrowLocation: loc, borrowTime: Date.now(), returnTime: null, status: 'borrowed' });
+                            saveRecords(records); saveMeters(meters);
+                            showToast('借用登记成功', 'success');
+                            processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
+                        });
+                    } else {
+                        const activeRec = records.find(r => r.meterId === meter.id && r.status === 'borrowed');
+                        formDiv.innerHTML = `
+                            <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+                                <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'}</p>
+                                <button class="btn btn-success btn-block btn-return-submit">🔄 归还仪表</button>
+                            </div>`;
+                        formDiv.querySelector('.btn-return-submit').addEventListener('click', () => {
+                            meter.status = 'in-stock';
+                            if (activeRec) { activeRec.returnTime = Date.now(); activeRec.status = 'returned'; }
+                            saveRecords(records); saveMeters(meters);
+                            showToast('归还成功', 'success');
+                            processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
+                        });
+                    }
+                } catch (err) {
+                    showToast('处理出错：' + err.message, 'error');
+                    console.error(err);
                 }
             }
 
@@ -410,13 +381,14 @@
                 if (e.key === 'Enter') processAssetQuery(e.target.value);
             });
 
-            // ---------- 摄像头扫码 ----------
+            // ---------- 摄像头扫码（带反馈）----------
             let html5QrCode = null;
             document.getElementById('btnStartScan').addEventListener('click', () => {
                 document.getElementById('scanPlaceholder').style.display = 'none';
                 if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
-                html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+                html5QrCode.start({ facingMode: "environment" }, { fps: 8, qrbox: { width: 250, height: 250 } },
                     (decodedText) => {
+                        showToast('扫描成功', 'success');
                         document.getElementById('manualQrInput').value = decodedText;
                         processAssetQuery(decodedText);
                         html5QrCode.stop().then(() => {
@@ -424,7 +396,10 @@
                             document.getElementById('btnStopScan').style.display = 'none';
                         }).catch(err => console.log(err));
                     },
-                    (errorMessage) => {})
+                    (errorMessage) => {
+                        // 静默失败，也可以打开调试时显示
+                        // console.log(errorMessage);
+                    })
                 .then(() => {
                     document.getElementById('btnStartScan').style.display = 'none';
                     document.getElementById('btnStopScan').style.display = 'inline-flex';
@@ -472,7 +447,6 @@
                 showToast('导出成功', 'success');
             });
 
-            // ---------- 管理 ----------
             function renderManageMeterList() {
                 const listEl = document.getElementById('manageMeterList');
                 listEl.innerHTML = meters.map(m => `
@@ -495,7 +469,6 @@
                     });
                 });
             }
-
             document.getElementById('meterForm').addEventListener('submit', e => {
                 e.preventDefault();
                 const id = document.getElementById('editMeterId').value;
@@ -539,7 +512,6 @@
                 }
             });
 
-            // ---------- URL参数（支付宝扫码） ----------
             function handleUrlParams() {
                 const params = new URLSearchParams(window.location.search);
                 const asset = params.get('asset');
