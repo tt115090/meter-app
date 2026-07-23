@@ -182,7 +182,7 @@
     </div>
     <script>
         (function() {
-            // ---------- CloudBase 初始化（使用你的环境ID）----------
+            // ---------- CloudBase 初始化 ----------
             const app = cloudbase.init({ env: 'meter-d1g5i97q97065b6e3' });
             const db = app.database();
             const _ = db.command;
@@ -193,35 +193,33 @@
             const ADMIN_PASSWORD = 'admin123';
             let isAdminAuthenticated = false;
 
-            // ---------- 云端数据操作 ----------
+            // ---------- 云端操作 ----------
             async function loadMeters() {
                 try {
                     const res = await meterCollection.limit(1000).get();
                     return res.data || [];
                 } catch (e) {
-                    showToast('加载仪表失败：' + e.message, 'error');
+                    showToast('加载仪表失败: ' + (e.message || '权限错误，请检查数据库安全规则'), 'error');
+                    console.error(e);
                     return [];
                 }
             }
 
             async function saveMeters(meters) {
                 try {
-                    // 清空集合
+                    // 清空已有数据
                     const existing = await meterCollection.get();
-                    if (existing.data.length > 0) {
-                        const ids = existing.data.map(doc => doc._id);
-                        // 分批删除，每次最多100条
-                        for (let i = 0; i < ids.length; i += 100) {
-                            const batch = ids.slice(i, i + 100);
-                            await Promise.all(batch.map(id => meterCollection.doc(id).remove()));
-                        }
+                    const ids = existing.data.map(doc => doc._id);
+                    for (let i = 0; i < ids.length; i += 100) {
+                        const batch = ids.slice(i, i + 100);
+                        await Promise.all(batch.map(id => meterCollection.doc(id).remove()));
                     }
-                    // 分批添加
+                    // 批量添加
                     for (let i = 0; i < meters.length; i += 100) {
                         await Promise.all(meters.slice(i, i + 100).map(m => meterCollection.add(m)));
                     }
                 } catch (e) {
-                    showToast('保存仪表失败：' + e.message, 'error');
+                    showToast('保存仪表失败: ' + (e.message || '请检查写入权限'), 'error');
                 }
             }
 
@@ -230,7 +228,7 @@
                     const res = await recordCollection.orderBy('borrowTime', 'desc').limit(1000).get();
                     return res.data || [];
                 } catch (e) {
-                    showToast('加载记录失败：' + e.message, 'error');
+                    showToast('加载记录失败: ' + (e.message || '权限错误'), 'error');
                     return [];
                 }
             }
@@ -238,18 +236,16 @@
             async function saveRecords(records) {
                 try {
                     const existing = await recordCollection.get();
-                    if (existing.data.length > 0) {
-                        const ids = existing.data.map(doc => doc._id);
-                        for (let i = 0; i < ids.length; i += 100) {
-                            const batch = ids.slice(i, i + 100);
-                            await Promise.all(batch.map(id => recordCollection.doc(id).remove()));
-                        }
+                    const ids = existing.data.map(doc => doc._id);
+                    for (let i = 0; i < ids.length; i += 100) {
+                        const batch = ids.slice(i, i + 100);
+                        await Promise.all(batch.map(id => recordCollection.doc(id).remove()));
                     }
                     for (let i = 0; i < records.length; i += 100) {
                         await Promise.all(records.slice(i, i + 100).map(r => recordCollection.add(r)));
                     }
                 } catch (e) {
-                    showToast('保存记录失败：' + e.message, 'error');
+                    showToast('保存记录失败: ' + (e.message || '请检查写入权限'), 'error');
                 }
             }
 
@@ -257,7 +253,6 @@
             let meters = [];
             let records = [];
 
-            // 工具函数
             function generateId() { return Date.now() + '_' + Math.random().toString(36).substr(2,6); }
             function formatTime(ts) {
                 if (!ts) return '-';
@@ -271,18 +266,13 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
-            // ---------- 页面导航 ----------
+            // ---------- 导航 ----------
             function switchPage(pageId) {
                 if (pageId === 'page-manage' && !isAdminAuthenticated) {
                     const pwd = prompt('请输入管理密码：');
-                    if (pwd === null) {
-                        pageId = 'page-dashboard';
-                    } else if (pwd !== ADMIN_PASSWORD) {
-                        showToast('密码错误', 'error');
-                        pageId = 'page-dashboard';
-                    } else {
-                        isAdminAuthenticated = true;
-                    }
+                    if (pwd === null) { pageId = 'page-dashboard'; }
+                    else if (pwd !== ADMIN_PASSWORD) { showToast('密码错误', 'error'); pageId = 'page-dashboard'; }
+                    else { isAdminAuthenticated = true; }
                 }
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
                 document.getElementById(pageId).classList.add('active');
@@ -311,7 +301,6 @@
                 document.getElementById('borrowedCount').textContent = meters.filter(m => m.status === 'borrowed').length;
             }
 
-            // ---------- 仪表总览 ----------
             function renderDashboard(filter='all', searchTerm='') {
                 const listEl = document.getElementById('meterList'), emptyEl = document.getElementById('emptyMeters');
                 let filtered = meters;
@@ -352,7 +341,6 @@
                 renderDashboard(f, e.target.value);
             });
 
-            // ---------- 字段提取 ----------
             function extractFields(text) {
                 const fields = {};
                 const idMatch = text.match(/企业编号[：:]\s*(\S+)/);
@@ -372,7 +360,6 @@
                 return fields;
             }
 
-            // ---------- 处理查询 ----------
             async function processAssetQuery(rawText) {
                 try {
                     rawText = rawText.trim();
@@ -492,12 +479,11 @@
                 if (e.key === 'Enter') processAssetQuery(e.target.value);
             });
 
-            // ---------- 摄像头扫描 ----------
+            // ---------- 摄像头 ----------
             let html5QrCode = null;
             function updateScanStatus(msg, isError=false) {
                 const el = document.getElementById('scanStatusMsg');
-                el.textContent = msg;
-                el.style.color = isError ? '#d93025' : '#1a73e8';
+                el.textContent = msg; el.style.color = isError ? '#d93025' : '#1a73e8';
             }
             document.getElementById('btnStartScan').addEventListener('click', () => {
                 document.getElementById('scanPlaceholder').style.display = 'none';
@@ -515,11 +501,8 @@
                         }).catch(()=>{});
                     },
                     (errorMessage) => {
-                        if (errorMessage && errorMessage.includes('No QR code found')) {
-                            updateScanStatus('📷 正在寻找二维码...');
-                        } else if (errorMessage) {
-                            updateScanStatus('识别失败: ' + errorMessage, true);
-                        }
+                        if (errorMessage && errorMessage.includes('No QR code found')) updateScanStatus('📷 正在寻找二维码...');
+                        else if (errorMessage) updateScanStatus('识别失败: ' + errorMessage, true);
                     }
                 ).then(() => {
                     document.getElementById('btnStartScan').style.display = 'none';
@@ -541,7 +524,6 @@
                 }
             });
 
-            // ---------- 借用记录 ----------
             function renderRecords(searchTerm='') {
                 const listEl = document.getElementById('recordList'), emptyEl = document.getElementById('emptyRecords');
                 let filtered = records;
@@ -572,7 +554,6 @@
                 showToast('导出成功', 'success');
             });
 
-            // ---------- 管理页 ----------
             function renderManageMeterList() {
                 const listEl = document.getElementById('manageMeterList');
                 listEl.innerHTML = meters.map(m => `
@@ -614,11 +595,8 @@
                     status: 'in-stock'
                 };
                 const existingIndex = meters.findIndex(m => m.assetNo === assetNo);
-                if (existingIndex >= 0) {
-                    Object.assign(meters[existingIndex], data);
-                } else {
-                    meters.push(data);
-                }
+                if (existingIndex >= 0) Object.assign(meters[existingIndex], data);
+                else meters.push(data);
                 await saveMeters(meters);
                 updateStats();
                 renderManageMeterList();
@@ -658,15 +636,20 @@
 
             // ---------- 初始化 ----------
             async function initApp() {
-                meters = await loadMeters();
-                records = await loadRecords();
-                // 如果没有仪表，写入示例数据
-                if (meters.length === 0) {
-                    meters = [
-                        { assetNo: 'METER-001', name: '精密压力表', model: 'A型-0.1级', serial: 'SN001', year: '2022', dept: '实验室', user: '张三', location: '实验室A-柜3', status: 'in-stock' },
-                        { assetNo: 'METER-002', name: '数字万用表', model: 'B型-FLUKE', serial: 'SN002', year: '2023', dept: '研发部', user: '李四', location: '实验室B-柜1', status: 'in-stock' }
-                    ];
-                    await saveMeters(meters);
+                try {
+                    meters = await loadMeters();
+                    records = await loadRecords();
+                    if (meters.length === 0) {
+                        // 首次使用写入示例数据
+                        meters = [
+                            { assetNo: 'METER-001', name: '精密压力表', model: 'A型-0.1级', serial: 'SN001', year: '2022', dept: '实验室', user: '张三', location: '实验室A-柜3', status: 'in-stock' },
+                            { assetNo: 'METER-002', name: '数字万用表', model: 'B型-FLUKE', serial: 'SN002', year: '2023', dept: '研发部', user: '李四', location: '实验室B-柜1', status: 'in-stock' }
+                        ];
+                        await saveMeters(meters);
+                    }
+                } catch (err) {
+                    showToast('初始化失败: ' + err.message, 'error');
+                    return;
                 }
                 updateStats();
                 renderDashboard();
