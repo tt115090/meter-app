@@ -798,18 +798,156 @@
             });
 
             // ---------- 核心：处理资产号查询 ----------
-            function processAssetQuery(input) {
-                let assetNo = input.trim();
-                if (!assetNo) {
-                    showToast('请输入资产号', 'error');
-                    return;
-                }
-                // 尝试解析JSON
-                try {
-                    const json = JSON.parse(assetNo);
-                    if (json.assetNo) assetNo = json.assetNo;
-                } catch (e) {}
-                const meter = meters.find(m => m.assetNo === assetNo);
+            
+function processAssetQuery(input) {
+    let rawText = input.trim();
+    if (!rawText) {
+        showToast('请输入或扫描资产信息', 'error');
+        return;
+    }
+
+    let assetNo = rawText;
+
+    // 1. 尝试解析JSON（兼容旧格式）
+    try {
+        const json = JSON.parse(rawText);
+        if (json.assetNo) assetNo = json.assetNo;
+    } catch (e) {}
+
+    // 2. 尝试从文本中提取“企业编号：”后面的内容（你现有的二维码格式）
+    const idMatch = rawText.match(/企业编号[：:]\s*(\S+)/);
+    if (idMatch) {
+        assetNo = idMatch[1].trim();
+        // 同时可以提取其他信息用于自动填充（可选）
+        const nameMatch = rawText.match(/名称[：:]\s*(\S+)/);
+        const personMatch = rawText.match(/使用人[：:]\s*(\S+)/);
+        const deptMatch = rawText.match(/使用部门[：:]\s*(\S+)/);
+
+        // 如果这个仪表不存在，自动创建一条基础记录
+        let meter = meters.find(m => m.assetNo === assetNo);
+        if (!meter) {
+            meter = {
+                id: generateId(),
+                assetNo: assetNo,
+                name: nameMatch ? nameMatch[1] : '',
+                type: '',   // 型号可以从文本提取，这里暂不处理
+                responsible: personMatch ? personMatch[1] : '',
+                location: deptMatch ? deptMatch[1] : '',
+                status: 'in-stock',
+            };
+            meters.push(meter);
+            saveMeters(meters);
+            updateStats();
+            renderDashboard();
+            showToast('自动添加了新仪表：' + assetNo, 'info');
+        } else {
+            // 如果已存在，可以更新部分信息（可选）
+            if (nameMatch && !meter.name) meter.name = nameMatch[1];
+            if (personMatch && !meter.responsible) meter.responsible = personMatch[1];
+            if (deptMatch && !meter.location) meter.location = deptMatch[1];
+            saveMeters(meters);
+        }
+    }
+
+    // 3. 正常查询
+    const meter = meters.find(m => m.assetNo === assetNo);
+    const card = document.getElementById('scanResultCard');
+    const infoDiv = document.getElementById('scanResultInfo');
+    const formDiv = document.getElementById('scanActionForm');
+    const title = document.getElementById('scanResultTitle');
+    const statusSpan = document.getElementById('scanResultStatus');
+
+    if (!meter) {
+        showToast(`未找到资产号: ${assetNo}`, 'error');
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+    title.textContent = `📟 ${meter.name || meter.assetNo}`;
+    statusSpan.innerHTML = meter.status === 'in-stock' ?
+        '<span class="tag-in-stock">在库</span>' :
+        '<span class="tag-borrowed">借出中</span>';
+
+    infoDiv.innerHTML = `
+        <p><strong>资产号：</strong>${meter.assetNo}</p>
+        <p><strong>名称：</strong>${meter.name || '-'}</p>
+        <p><strong>责任人：</strong>${meter.responsible || '-'}</p>
+        <p><strong>位置：</strong>${meter.location || '-'}</p>
+    `;
+
+    // 根据状态显示借用/归还表单（原有代码不变，此处省略）
+    if (meter.status === 'in-stock') {
+        formDiv.innerHTML = `
+            <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+                <div class="form-group">
+                    <label class="form-label">借用人姓名 *</label>
+                    <input type="text" class="form-input borrow-name" placeholder="姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">借用人编号</label>
+                    <input type="text" class="form-input borrow-id" placeholder="工号">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">借用地点 *</label>
+                    <input type="text" class="form-input borrow-location" placeholder="例如：3号车间">
+                </div>
+                <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
+            </div>
+        `;
+        formDiv.querySelector('.btn-borrow-submit').addEventListener('click', () => {
+            const name = formDiv.querySelector('.borrow-name').value.trim();
+            const id = formDiv.querySelector('.borrow-id').value.trim();
+            const location = formDiv.querySelector('.borrow-location').value.trim();
+            if (!name || !location) {
+                showToast('请填写借用人姓名和借用地点', 'error');
+                return;
+            }
+            meter.status = 'borrowed';
+            meter.location = location;
+            const record = {
+                id: generateId(),
+                meterId: meter.id,
+                assetNo: meter.assetNo,
+                meterName: meter.name,
+                borrowerId: id,
+                borrowerName: name,
+                borrowLocation: location,
+                borrowTime: Date.now(),
+                returnTime: null,
+                status: 'borrowed',
+            };
+            records.unshift(record);
+            saveRecords(records);
+            saveMeters(meters);
+            showToast('借用登记成功', 'success');
+            processAssetQuery(meter.assetNo);
+            updateStats();
+            renderDashboard();
+        });
+    } else {
+        formDiv.innerHTML = `
+            <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
+                <p><strong>当前借用人：</strong>${records.find(r => r.meterId === meter.id && r.status === 'borrowed')?.borrowerName || '未知'}</p>
+                <button class="btn btn-success btn-block btn-return-submit">🔄 归还仪表</button>
+            </div>
+        `;
+        formDiv.querySelector('.btn-return-submit').addEventListener('click', () => {
+            meter.status = 'in-stock';
+            const activeRecord = records.find(r => r.meterId === meter.id && r.status === 'borrowed');
+            if (activeRecord) {
+                activeRecord.returnTime = Date.now();
+                activeRecord.status = 'returned';
+            }
+            saveRecords(records);
+            saveMeters(meters);
+            showToast('归还成功', 'success');
+            processAssetQuery(meter.assetNo);
+            updateStats();
+            renderDashboard();
+        });
+    }
+}
                 const card = document.getElementById('scanResultCard');
                 const infoDiv = document.getElementById('scanResultInfo');
                 const formDiv = document.getElementById('scanActionForm');
