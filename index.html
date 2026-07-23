@@ -236,6 +236,7 @@
             const ADMIN_PASSWORD = 'admin123';
             let isAdminAuthenticated = false;
             let pendingPageId = null;
+            let pendingDeleteId = null;  // 待删除的记录ID
             let meters = [];
             let records = [];
 
@@ -252,31 +253,81 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
-            document.getElementById('pwdConfirm').addEventListener('click', () => {
+            // ---------- 密码弹窗逻辑 ----------
+            document.getElementById('pwdConfirm').addEventListener('click', async () => {
                 const pwd = document.getElementById('pwdInput').value;
-                if (pwd === ADMIN_PASSWORD) {
-                    isAdminAuthenticated = true;
-                    document.getElementById('pwdModal').classList.remove('active');
-                    switchPage(pendingPageId);
-                } else {
+                if (pwd !== ADMIN_PASSWORD) {
                     document.getElementById('pwdError').style.display = 'block';
+                    return;
+                }
+                // 密码正确，执行待处理操作
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.remove('active');
+                
+                if (pendingDeleteId) {
+                    // 执行删除记录操作
+                    await executeDelete(pendingDeleteId);
+                    pendingDeleteId = null;
+                } else if (pendingPageId) {
+                    // 进入管理页
+                    isAdminAuthenticated = true;
+                    switchPage(pendingPageId);
                 }
             });
+
             document.getElementById('pwdCancel').addEventListener('click', () => {
                 document.getElementById('pwdModal').classList.remove('active');
-                switchPage('page-dashboard');
+                pendingDeleteId = null;
+                pendingPageId = null;
             });
-            function showPwdModal(targetPageId) {
-                pendingPageId = targetPageId;
-                document.getElementById('pwdModal').classList.add('active');
+
+            function showPwdModalForDelete(recordId) {
+                pendingDeleteId = recordId;
+                pendingPageId = null;
                 document.getElementById('pwdInput').value = '';
                 document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.add('active');
                 document.getElementById('pwdInput').focus();
             }
 
+            function showPwdModalForPage(pageId) {
+                pendingPageId = pageId;
+                pendingDeleteId = null;
+                document.getElementById('pwdInput').value = '';
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.add('active');
+                document.getElementById('pwdInput').focus();
+            }
+
+            // 实际删除记录的操作
+            async function executeDelete(recordId) {
+                const recordIndex = records.findIndex(r => r.id === recordId);
+                if (recordIndex === -1) return;
+                const record = records[recordIndex];
+                if (record.status === 'borrowed') {
+                    const meter = meters.find(m => m.assetNo === record.assetNo);
+                    if (meter) meter.status = 'in-stock';
+                }
+                records.splice(recordIndex, 1);
+                await saveRecords(records);
+                await saveMeters(meters);
+                updateStats();
+                renderDashboard();
+                renderRecords();
+                showToast('记录已删除', 'success');
+            }
+
+            // 点击删除按钮时调用此函数，触发密码弹窗
+            function deleteRecordWithAuth(recordId) {
+                showPwdModalForDelete(recordId);
+            }
+
+            window.deleteRecordWithAuth = deleteRecordWithAuth;
+
+            // ---------- 页面导航 ----------
             function switchPage(pageId) {
                 if (pageId === 'page-manage' && !isAdminAuthenticated) {
-                    showPwdModal(pageId);
+                    showPwdModalForPage(pageId);
                     return;
                 }
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -428,7 +479,6 @@
                                 <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
                             </div>`;
                         formDiv.querySelector('.btn-borrow-submit').addEventListener('click', async () => {
-                            // 再次检查仪表状态（防止并发）
                             if (meter.status !== 'in-stock') {
                                 showToast('该仪表已被他人借用，请刷新后重试', 'error');
                                 return;
@@ -506,26 +556,7 @@
                 }).catch(()=>{});
             });
 
-            // ---------- 借用记录（含删除功能） ----------
-            async function deleteRecord(recordId) {
-                if (!confirm('确定删除该借用记录吗？')) return;
-                const recordIndex = records.findIndex(r => r.id === recordId);
-                if (recordIndex === -1) return;
-                const record = records[recordIndex];
-                // 如果该记录是借用中，需将对应仪表恢复为在库
-                if (record.status === 'borrowed') {
-                    const meter = meters.find(m => m.assetNo === record.assetNo);
-                    if (meter) meter.status = 'in-stock';
-                }
-                records.splice(recordIndex, 1);
-                await saveRecords(records);
-                await saveMeters(meters);
-                updateStats();
-                renderDashboard();
-                renderRecords();
-                showToast('记录已删除', 'success');
-            }
-
+            // ---------- 借用记录 ----------
             function renderRecords(searchTerm='') {
                 const listEl = document.getElementById('recordList'), emptyEl = document.getElementById('emptyRecords');
                 let filtered = records;
@@ -541,15 +572,11 @@
                             <div>借用时间: ${formatTime(r.borrowTime)}</div>
                             <div>归还时间: ${r.returnTime ? formatTime(r.returnTime) : '<span style="color:#e67e22">未归还</span>'}</div>
                             <div class="record-actions">
-                                <button class="btn btn-danger btn-sm" onclick="deleteRecord('${r.id}')">🗑 删除</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteRecordWithAuth('${r.id}')">🗑 删除</button>
                             </div>
                         </div>`).join('');
                 }
             }
-
-            // 将 deleteRecord 暴露为全局以便 onclick 调用
-            window.deleteRecord = deleteRecord;
-
             document.getElementById('searchRecord').addEventListener('input', e => renderRecords(e.target.value));
             document.getElementById('btnExportCSV').addEventListener('click', () => {
                 let csv = '资产号,仪表名称,借用人,借用人编号,借用地点,借用时间,归还时间,状态\n';
