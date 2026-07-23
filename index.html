@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>仪表资产扫码管理系统</title>
 
-    <!-- PWA 相关 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="仪表管理">
     <link rel="manifest" href="manifest.json">
 
-    <!-- 二维码扫描库（用于App内扫描） -->
+    <!-- 二维码扫描库 -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
     <style>
@@ -30,485 +29,77 @@
             --radius: 14px;
             --radius-sm: 10px;
             --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            --nav-height: 64px;
             --bottom-nav-height: 68px;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            -webkit-tap-highlight-color: transparent;
-            -webkit-font-smoothing: antialiased;
-            padding-bottom: calc(var(--bottom-nav-height) + 20px);
+            background: var(--bg); color: var(--text); min-height: 100vh;
+            -webkit-tap-highlight-color: transparent; padding-bottom: calc(var(--bottom-nav-height) + 20px);
         }
-
         .top-nav {
-            background: var(--card);
-            border-bottom: 1px solid var(--border);
-            padding: 12px 16px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+            background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px;
+            position: sticky; top: 0; z-index: 100; display: flex; align-items: center;
+            justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
-        .top-nav .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
-        .top-nav .logo .icon {
-            width: 38px;
-            height: 38px;
-            background: linear-gradient(135deg, #1a73e8, #4a9af5);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
-            color: #fff;
-        }
-        .top-nav .stats-badge {
-            display: flex;
-            gap: 12px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-        .top-nav .stats-badge span {
-            background: #f0f4ff;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-            color: var(--primary);
-            white-space: nowrap;
-            font-size: 0.8rem;
-        }
-        .top-nav .stats-badge .borrowed-count {
-            background: #fff3e0;
-            color: #e67e22;
-        }
-
-        .main-content {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 16px;
-        }
-        .page {
-            display: none;
-            animation: fadeSlideIn 0.3s ease;
-        }
-        .page.active {
-            display: block;
-        }
-        @keyframes fadeSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .card {
-            background: var(--card);
-            border-radius: var(--radius);
-            padding: 18px 16px;
-            margin-bottom: 14px;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border);
-            transition: var(--transition);
-        }
-        .card:active {
-            transform: scale(0.985);
-        }
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .card-title {
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .card-title .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            flex-shrink: 0;
-        }
-        .dot.in-stock {
-            background: #0d904f;
-        }
-        .dot.borrowed {
-            background: #e67e22;
-            animation: pulse 1.6s infinite;
-        }
-        @keyframes pulse {
-            0%,
-            100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.35;
-            }
-        }
-
-        .meter-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 12px;
-            border-radius: var(--radius-sm);
-            background: #fafbfc;
-            border: 1px solid #eee;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: var(--transition);
-            flex-wrap: wrap;
-        }
-        .meter-item:hover {
-            background: #f0f4ff;
-            border-color: #c5d5f7;
-        }
-        .meter-item .meter-avatar {
-            width: 44px;
-            height: 44px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #e8f0fe, #d2e3fc);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-            flex-shrink: 0;
-            color: #1a73e8;
-        }
-        .meter-item .meter-info {
-            flex: 1;
-            min-width: 140px;
-        }
-        .meter-item .meter-name {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-        .meter-item .meter-asset {
-            font-size: 0.78rem;
-            color: var(--text-secondary);
-        }
-        .meter-item .meter-status-tag {
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .tag-in-stock {
-            background: #e6f4ea;
-            color: #0d8040;
-        }
-        .tag-borrowed {
-            background: #fff3e0;
-            color: #c7691a;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 18px;
-            border-radius: 22px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: var(--transition);
-            white-space: nowrap;
-            letter-spacing: 0.2px;
-            touch-action: manipulation;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        .btn:active {
-            transform: scale(0.94);
-            opacity: 0.85;
-        }
-        .btn-primary {
-            background: var(--primary);
-            color: #fff;
-            box-shadow: 0 3px 10px rgba(26, 115, 232, 0.3);
-        }
-        .btn-outline {
-            background: #fff;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-        }
-        .btn-success {
-            background: var(--success);
-            color: #fff;
-        }
-        .btn-danger {
-            background: var(--danger);
-            color: #fff;
-        }
-        .btn-warning {
-            background: var(--warning);
-            color: #fff;
-        }
-        .btn-sm {
-            padding: 6px 14px;
-            font-size: 0.8rem;
-            border-radius: 16px;
-        }
-        .btn-block {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .form-group {
-            margin-bottom: 14px;
-        }
-        .form-label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: var(--text-secondary);
-        }
-        .form-input,
-        .form-select,
-        .form-textarea {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: var(--radius-sm);
-            border: 2px solid #e0e0e0;
-            font-size: 0.95rem;
-            font-family: inherit;
-            transition: var(--transition);
-            background: #fafbfc;
-            color: var(--text);
-            -webkit-appearance: none;
-            appearance: none;
-        }
-        .form-input:focus,
-        .form-select:focus,
-        .form-textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: #fff;
-            box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.08);
-        }
-        .form-textarea {
-            resize: vertical;
-            min-height: 70px;
-        }
-
-        #qr-reader {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-            border-radius: var(--radius);
-            overflow: hidden;
-            border: 2px dashed var(--border);
-        }
-        .scan-placeholder {
-            text-align: center;
-            padding: 30px 20px;
-            color: var(--text-secondary);
-            background: #fafbfc;
-            border-radius: var(--radius);
-            border: 2px dashed #d0d0d0;
-        }
-
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            pointer-events: none;
-        }
-        .toast {
-            padding: 12px 20px;
-            border-radius: 25px;
-            color: #fff;
-            font-weight: 600;
-            font-size: 0.9rem;
-            animation: toastIn 0.35s ease, toastOut 0.35s ease 2.2s forwards;
-            pointer-events: auto;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-            text-align: center;
-            max-width: 90vw;
-        }
-        .toast.success {
-            background: #0d904f;
-        }
-        .toast.error {
-            background: #d93025;
-        }
-        .toast.info {
-            background: #1a73e8;
-        }
-        @keyframes toastIn {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        @keyframes toastOut {
-            from {
-                opacity: 1;
-            }
-            to {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-        }
-
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--card);
-            border-top: 1px solid var(--border);
-            display: flex;
-            z-index: 100;
-            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
-            height: var(--bottom-nav-height);
-        }
-        .bottom-nav .nav-item {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
-            cursor: pointer;
-            transition: var(--transition);
-            color: var(--text-secondary);
-            font-size: 0.7rem;
-            font-weight: 500;
-            border: none;
-            background: transparent;
-            padding: 6px 4px;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .bottom-nav .nav-item .nav-icon {
-            font-size: 1.5rem;
-            transition: var(--transition);
-        }
-        .bottom-nav .nav-item.active {
-            color: var(--primary);
-        }
-        .bottom-nav .nav-item:active {
-            opacity: 0.7;
-        }
-
-        .filter-tags {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        .filter-tag {
-            padding: 7px 15px;
-            border-radius: 18px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            border: 2px solid #e0e0e0;
-            background: #fff;
-            transition: var(--transition);
-            white-space: nowrap;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        .filter-tag.active {
-            background: #e8f0fe;
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 50px 20px;
-            color: #aaa;
-        }
-
-        @media (min-width: 768px) {
-            body {
-                padding-bottom: 20px;
-            }
-            .bottom-nav {
-                display: none;
-            }
-            .desktop-tabs {
-                display: flex;
-                gap: 6px;
-                flex-wrap: wrap;
-            }
-            .desktop-tab {
-                padding: 9px 18px;
-                border-radius: 20px;
-                font-weight: 600;
-                cursor: pointer;
-                border: 2px solid transparent;
-                background: transparent;
-                font-size: 0.9rem;
-                transition: var(--transition);
-            }
-            .desktop-tab.active {
-                background: #e8f0fe;
-                border-color: var(--primary);
-                color: var(--primary);
-            }
-        }
-        @media (max-width: 767px) {
-            .desktop-tabs {
-                display: none;
-            }
-        }
+        .top-nav .logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .top-nav .logo .icon { width: 38px; height: 38px; background: linear-gradient(135deg, #1a73e8, #4a9af5); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #fff; }
+        .top-nav .stats-badge { display: flex; gap: 12px; font-size: 0.85rem; color: var(--text-secondary); }
+        .top-nav .stats-badge span { background: #f0f4ff; padding: 6px 12px; border-radius: 20px; font-weight: 600; color: var(--primary); white-space: nowrap; font-size: 0.8rem; }
+        .top-nav .stats-badge .borrowed-count { background: #fff3e0; color: #e67e22; }
+        .main-content { max-width: 800px; margin: 0 auto; padding: 16px; }
+        .page { display: none; animation: fadeSlideIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: var(--card); border-radius: var(--radius); padding: 18px 16px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: var(--transition); }
+        .card:active { transform: scale(0.985); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        .card-title { font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .dot.in-stock { background: #0d904f; } .dot.borrowed { background: #e67e22; animation: pulse 1.6s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        .meter-item { display: flex; align-items: center; gap: 14px; padding: 14px 12px; border-radius: var(--radius-sm); background: #fafbfc; border: 1px solid #eee; margin-bottom: 8px; cursor: pointer; transition: var(--transition); flex-wrap: wrap; }
+        .meter-item:hover { background: #f0f4ff; border-color: #c5d5f7; }
+        .meter-item .meter-avatar { width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, #e8f0fe, #d2e3fc); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; color: #1a73e8; }
+        .meter-item .meter-info { flex: 1; min-width: 140px; }
+        .meter-item .meter-name { font-weight: 600; font-size: 0.95rem; }
+        .meter-item .meter-asset { font-size: 0.78rem; color: var(--text-secondary); }
+        .meter-status-tag { padding: 5px 10px; border-radius: 15px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+        .tag-in-stock { background: #e6f4ea; color: #0d8040; } .tag-borrowed { background: #fff3e0; color: #c7691a; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 22px; font-size: 0.9rem; font-weight: 600; border: none; cursor: pointer; transition: var(--transition); white-space: nowrap; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+        .btn:active { transform: scale(0.94); opacity: 0.85; }
+        .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(26,115,232,0.3); }
+        .btn-outline { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-success { background: var(--success); color: #fff; } .btn-danger { background: var(--danger); color: #fff; }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; border-radius: 16px; }
+        .btn-block { width: 100%; justify-content: center; }
+        .form-group { margin-bottom: 14px; }
+        .form-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: var(--text-secondary); }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 2px solid #e0e0e0; font-size: 0.95rem; font-family: inherit; background: #fafbfc; color: var(--text); -webkit-appearance: none; appearance: none; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(26,115,232,0.08); }
+        #qr-reader { width: 100%; max-width: 500px; margin: 0 auto; border-radius: var(--radius); overflow: hidden; border: 2px dashed var(--border); }
+        .scan-placeholder { text-align: center; padding: 30px 20px; color: var(--text-secondary); background: #fafbfc; border-radius: var(--radius); border: 2px dashed #d0d0d0; }
+        .toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast { padding: 12px 20px; border-radius: 25px; color: #fff; font-weight: 600; font-size: 0.9rem; animation: toastIn 0.35s ease, toastOut 0.35s ease 2.2s forwards; pointer-events: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.2); text-align: center; max-width: 90vw; }
+        .toast.success { background: #0d904f; } .toast.error { background: #d93025; } .toast.info { background: #1a73e8; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -2px 12px rgba(0,0,0,0.06); height: var(--bottom-nav-height); }
+        .bottom-nav .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: var(--text-secondary); font-size: 0.7rem; font-weight: 500; border: none; background: transparent; padding: 6px 4px; -webkit-tap-highlight-color: transparent; }
+        .bottom-nav .nav-item .nav-icon { font-size: 1.5rem; }
+        .bottom-nav .nav-item.active { color: var(--primary); }
+        .filter-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .filter-tag { padding: 7px 15px; border-radius: 18px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 2px solid #e0e0e0; background: #fff; transition: var(--transition); white-space: nowrap; -webkit-user-select: none; user-select: none; }
+        .filter-tag.active { background: #e8f0fe; border-color: var(--primary); color: var(--primary); }
+        .empty-state { text-align: center; padding: 50px 20px; color: #aaa; }
+        @media (min-width: 768px) { body { padding-bottom: 20px; } .bottom-nav { display: none; } .desktop-tabs { display: flex; gap: 6px; flex-wrap: wrap; } .desktop-tab { padding: 9px 18px; border-radius: 20px; font-weight: 600; cursor: pointer; border: 2px solid transparent; background: transparent; font-size: 0.9rem; transition: var(--transition); } .desktop-tab.active { background: #e8f0fe; border-color: var(--primary); color: var(--primary); } }
+        @media (max-width: 767px) { .desktop-tabs { display: none; } }
     </style>
 </head>
 <body>
-
     <div class="toast-container" id="toastContainer"></div>
-
     <div class="top-nav">
-        <div class="logo">
-            <div class="icon">📊</div>
-            <span>仪表管理系统</span>
-        </div>
+        <div class="logo"><div class="icon">📊</div><span>仪表管理系统</span></div>
         <div class="stats-badge">
             <span>总计 <b id="totalCount">0</b></span>
             <span>在库 <b id="inStockCount">0</b></span>
@@ -523,24 +114,16 @@
     </div>
 
     <div class="main-content">
-        <!-- 仪表总览页 -->
         <div class="page active" id="page-dashboard">
             <div class="filter-tags">
                 <span class="filter-tag active" data-filter="all">全部</span>
                 <span class="filter-tag" data-filter="in-stock">🟢 在库</span>
                 <span class="filter-tag" data-filter="borrowed">🟠 借出</span>
             </div>
-            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-                <input type="text" class="form-input" id="searchMeter" placeholder="🔍 搜索资产号/名称/责任人..." style="flex:1;min-width:180px;">
-            </div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;"><input type="text" class="form-input" id="searchMeter" placeholder="🔍 搜索资产号/名称/责任人..." style="flex:1;"></div>
             <div id="meterList"></div>
-            <div class="empty-state" id="emptyMeters" style="display:none;">
-                <div>📭</div>
-                <p>暂无匹配的仪表</p>
-            </div>
+            <div class="empty-state" id="emptyMeters" style="display:none;"><div>📭</div><p>暂无匹配的仪表</p></div>
         </div>
-
-        <!-- 扫码操作页 -->
         <div class="page" id="page-scan">
             <div class="card">
                 <div class="card-title">📷 摄像头扫描</div>
@@ -554,7 +137,7 @@
             <div class="card">
                 <div class="card-title">⌨️ 手动输入资产号</div>
                 <div style="display:flex;gap:8px;">
-                    <input type="text" class="form-input" id="manualQrInput" placeholder="输入资产号，按回车查询" style="flex:1;">
+                    <input type="text" class="form-input" id="manualQrInput" placeholder="输入资产号或粘贴文本" style="flex:1;">
                     <button class="btn btn-primary" id="btnManualQuery">查询</button>
                 </div>
             </div>
@@ -567,46 +150,24 @@
                 <div id="scanActionForm"></div>
             </div>
         </div>
-
-        <!-- 借用记录页 -->
         <div class="page" id="page-records">
-            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
                 <input type="text" class="form-input" id="searchRecord" placeholder="🔍 搜索资产号/借用人..." style="flex:1;">
                 <button class="btn btn-outline btn-sm" id="btnExportCSV">📥 导出CSV</button>
             </div>
             <div id="recordList"></div>
-            <div class="empty-state" id="emptyRecords" style="display:none;">
-                <div>📝</div>
-                <p>暂无借用记录</p>
-            </div>
+            <div class="empty-state" id="emptyRecords" style="display:none;"><div>📝</div><p>暂无借用记录</p></div>
         </div>
-
-        <!-- 管理页 -->
         <div class="page" id="page-manage">
             <div class="card">
                 <div class="card-title">➕ 添加/编辑仪表</div>
                 <form id="meterForm">
                     <input type="hidden" id="editMeterId">
-                    <div class="form-group">
-                        <label class="form-label">资产号 *</label>
-                        <input type="text" class="form-input" id="formAssetNo" required placeholder="METER-001">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">仪表名称</label>
-                        <input type="text" class="form-input" id="formName" placeholder="精密压力表">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">型号/规格</label>
-                        <input type="text" class="form-input" id="formType" placeholder="A型-0.1级">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">责任人</label>
-                        <input type="text" class="form-input" id="formResponsible" placeholder="张三">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">当前位置</label>
-                        <input type="text" class="form-input" id="formLocation" placeholder="实验室A-柜3">
-                    </div>
+                    <div class="form-group"><label class="form-label">资产号 *</label><input type="text" class="form-input" id="formAssetNo" required placeholder="METER-001"></div>
+                    <div class="form-group"><label class="form-label">仪表名称</label><input type="text" class="form-input" id="formName" placeholder="精密压力表"></div>
+                    <div class="form-group"><label class="form-label">型号/规格</label><input type="text" class="form-input" id="formType" placeholder="A型-0.1级"></div>
+                    <div class="form-group"><label class="form-label">责任人</label><input type="text" class="form-input" id="formResponsible" placeholder="张三"></div>
+                    <div class="form-group"><label class="form-label">当前位置</label><input type="text" class="form-input" id="formLocation" placeholder="实验室A-柜3"></div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
                         <button type="submit" class="btn btn-primary" id="btnSaveMeter">💾 保存</button>
                         <button type="button" class="btn btn-outline" id="btnClearForm">🔄 清空</button>
@@ -625,7 +186,6 @@
         </div>
     </div>
 
-    <!-- 底部导航（手机） -->
     <div class="bottom-nav" id="bottomNav">
         <button class="nav-item active" data-page="page-dashboard"><span class="nav-icon">📋</span>仪表总览</button>
         <button class="nav-item" data-page="page-scan"><span class="nav-icon">📷</span>扫码操作</button>
@@ -640,83 +200,56 @@
             const STORAGE_RECORDS = 'meter_system_records';
 
             function loadMeters() {
-                try {
-                    return JSON.parse(localStorage.getItem(STORAGE_METERS)) || getDefaultMeters();
-                } catch (e) {
-                    return getDefaultMeters();
-                }
+                try { return JSON.parse(localStorage.getItem(STORAGE_METERS)) || getDefaultMeters(); }
+                catch(e) { return getDefaultMeters(); }
             }
-
             function saveMeters(data) { localStorage.setItem(STORAGE_METERS, JSON.stringify(data)); }
-
             function loadRecords() {
-                try {
-                    return JSON.parse(localStorage.getItem(STORAGE_RECORDS)) || [];
-                } catch (e) {
-                    return [];
-                }
+                try { return JSON.parse(localStorage.getItem(STORAGE_RECORDS)) || []; }
+                catch(e) { return []; }
             }
-
             function saveRecords(data) { localStorage.setItem(STORAGE_RECORDS, JSON.stringify(data)); }
 
             function getDefaultMeters() {
                 return [
-                    { id: 'm1', assetNo: 'METER-001', name: '精密压力表', type: 'A型-0.1级', responsible: '张三',
-                        location: '实验室A-柜3', status: 'in-stock' },
-                    { id: 'm2', assetNo: 'METER-002', name: '数字万用表', type: 'B型-FLUKE', responsible: '李四',
-                        location: '实验室B-柜1', status: 'in-stock' },
-                    { id: 'm3', assetNo: 'METER-003', name: '温度传感器', type: 'PT100-A', responsible: '王五',
-                        location: '3号车间', status: 'borrowed' },
-                    { id: 'm4', assetNo: 'METER-004', name: '流量计', type: 'DN50-电磁', responsible: '赵六',
-                        location: '2号生产线', status: 'in-stock' },
+                    { id: 'm1', assetNo: 'METER-001', name: '精密压力表', type: 'A型-0.1级', responsible: '张三', location: '实验室A-柜3', status: 'in-stock' },
+                    { id: 'm2', assetNo: 'METER-002', name: '数字万用表', type: 'B型-FLUKE', responsible: '李四', location: '实验室B-柜1', status: 'in-stock' },
+                    { id: 'm3', assetNo: 'METER-003', name: '温度传感器', type: 'PT100-A', responsible: '王五', location: '3号车间', status: 'borrowed' },
+                    { id: 'm4', assetNo: 'METER-004', name: '流量计', type: 'DN50-电磁', responsible: '赵六', location: '2号生产线', status: 'in-stock' }
                 ];
             }
 
             let meters = loadMeters();
             let records = loadRecords();
             if (records.length === 0 && meters.some(m => m.status === 'borrowed')) {
-                records = [{ id: 'r1', meterId: 'm3', assetNo: 'METER-003', meterName: '温度传感器', borrowerId: 'E001',
-                    borrowerName: '陈工', borrowLocation: '5号车间', borrowTime: Date.now() - 86400000 * 3,
-                    returnTime: null, status: 'borrowed' }];
+                records = [{ id: 'r1', meterId: 'm3', assetNo: 'METER-003', meterName: '温度传感器', borrowerId: 'E001', borrowerName: '陈工', borrowLocation: '5号车间', borrowTime: Date.now() - 86400000*3, returnTime: null, status: 'borrowed' }];
                 saveRecords(records);
             }
-            if (meters.length === 0) {
-                meters = getDefaultMeters();
-                saveMeters(meters);
-            }
+            if (meters.length === 0) { meters = getDefaultMeters(); saveMeters(meters); }
 
-            // ---------- 工具函数 ----------
-            function generateId() { return Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
-
+            function generateId() { return Date.now() + '_' + Math.random().toString(36).substr(2,6); }
             function formatTime(ts) {
                 if (!ts) return '-';
-                const d = new Date(ts);
-                const pad = n => String(n).padStart(2, '0');
+                const d = new Date(ts), pad = n => String(n).padStart(2,'0');
                 return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
             }
-
-            function showToast(msg, type = 'info') {
-                const container = document.getElementById('toastContainer');
-                const toast = document.createElement('div');
-                toast.className = `toast ${type}`;
-                toast.textContent = msg;
-                container.appendChild(toast);
-                setTimeout(() => toast.remove(), 2600);
+            function showToast(msg, type='info') {
+                const c = document.getElementById('toastContainer');
+                const t = document.createElement('div');
+                t.className = `toast ${type}`; t.textContent = msg;
+                c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
             // ---------- 页面导航 ----------
             function switchPage(pageId) {
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
                 document.getElementById(pageId).classList.add('active');
-
                 document.querySelectorAll('.desktop-tab').forEach(t => t.classList.remove('active'));
                 const dt = document.querySelector(`.desktop-tab[data-page="${pageId}"]`);
                 if (dt) dt.classList.add('active');
-
                 document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
                 const bn = document.querySelector(`.bottom-nav .nav-item[data-page="${pageId}"]`);
                 if (bn) bn.classList.add('active');
-
                 if (pageId === 'page-dashboard') renderDashboard();
                 if (pageId === 'page-records') renderRecords();
                 if (pageId === 'page-manage') renderManageMeterList();
@@ -731,367 +264,172 @@
                 if (item) switchPage(item.dataset.page);
             });
 
-            // ---------- 统计更新 ----------
             function updateStats() {
                 document.getElementById('totalCount').textContent = meters.length;
-                document.getElementById('inStockCount').textContent = meters.filter(m => m.status === 'in-stock')
-                    .length;
-                document.getElementById('borrowedCount').textContent = meters.filter(m => m.status === 'borrowed')
-                    .length;
+                document.getElementById('inStockCount').textContent = meters.filter(m => m.status === 'in-stock').length;
+                document.getElementById('borrowedCount').textContent = meters.filter(m => m.status === 'borrowed').length;
             }
 
-            // ---------- 仪表总览页 ----------
-            function renderDashboard(filter = 'all', searchTerm = '') {
-                const listEl = document.getElementById('meterList');
-                const emptyEl = document.getElementById('emptyMeters');
+            // ---------- 仪表总览 ----------
+            function renderDashboard(filter='all', searchTerm='') {
+                const listEl = document.getElementById('meterList'), emptyEl = document.getElementById('emptyMeters');
                 let filtered = meters;
                 if (filter === 'in-stock') filtered = filtered.filter(m => m.status === 'in-stock');
                 if (filter === 'borrowed') filtered = filtered.filter(m => m.status === 'borrowed');
                 if (searchTerm) {
                     const t = searchTerm.toLowerCase();
-                    filtered = filtered.filter(m => m.assetNo.toLowerCase().includes(t) || m.name.toLowerCase()
-                        .includes(t) || m.responsible.toLowerCase().includes(t));
+                    filtered = filtered.filter(m => m.assetNo.toLowerCase().includes(t) || m.name.toLowerCase().includes(t) || m.responsible.toLowerCase().includes(t));
                 }
-                if (filtered.length === 0) {
-                    listEl.innerHTML = '';
-                    emptyEl.style.display = 'block';
-                } else {
+                if (filtered.length === 0) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; }
+                else {
                     emptyEl.style.display = 'none';
                     listEl.innerHTML = filtered.map(m => `
                         <div class="meter-item" data-asset="${m.assetNo}">
                             <div class="meter-avatar">📟</div>
-                            <div class="meter-info">
-                                <div class="meter-name">${m.name || '未命名'}</div>
-                                <div class="meter-asset">${m.assetNo} | 责任人: ${m.responsible || '-'}</div>
-                            </div>
-                            <span class="meter-status-tag ${m.status === 'in-stock' ? 'tag-in-stock' : 'tag-borrowed'}">${m.status === 'in-stock' ? '在库' : '借出'}</span>
-                        </div>
-                    `).join('');
-                    // 点击仪表项可触发查询（跳转到扫码页显示详情）
+                            <div class="meter-info"><div class="meter-name">${m.name||'未命名'}</div><div class="meter-asset">${m.assetNo} | 责任人: ${m.responsible||'-'}</div></div>
+                            <span class="meter-status-tag ${m.status==='in-stock'?'tag-in-stock':'tag-borrowed'}">${m.status==='in-stock'?'在库':'借出'}</span>
+                        </div>`).join('');
                     listEl.querySelectorAll('.meter-item').forEach(item => {
                         item.addEventListener('click', () => {
-                            const assetNo = item.dataset.asset;
-                            document.getElementById('manualQrInput').value = assetNo;
+                            document.getElementById('manualQrInput').value = item.dataset.asset;
                             switchPage('page-scan');
-                            processAssetQuery(assetNo);
+                            processAssetQuery(item.dataset.asset);
                         });
                     });
                 }
                 updateStats();
             }
 
-            // 过滤标签事件
             document.querySelector('#page-dashboard .filter-tags').addEventListener('click', e => {
                 if (e.target.classList.contains('filter-tag')) {
-                    document.querySelectorAll('#page-dashboard .filter-tag').forEach(t => t.classList
-                        .remove('active'));
+                    document.querySelectorAll('#page-dashboard .filter-tag').forEach(t => t.classList.remove('active'));
                     e.target.classList.add('active');
-                    const filter = e.target.dataset.filter;
-                    const search = document.getElementById('searchMeter').value;
-                    renderDashboard(filter, search);
+                    renderDashboard(e.target.dataset.filter, document.getElementById('searchMeter').value);
                 }
             });
             document.getElementById('searchMeter').addEventListener('input', e => {
-                const activeFilter = document.querySelector('#page-dashboard .filter-tag.active')?.dataset
-                    .filter || 'all';
-                renderDashboard(activeFilter, e.target.value);
+                const f = document.querySelector('#page-dashboard .filter-tag.active')?.dataset.filter || 'all';
+                renderDashboard(f, e.target.value);
             });
 
-            // ---------- 核心：处理资产号查询 ----------
-            
-function processAssetQuery(input) {
-    let rawText = input.trim();
-    if (!rawText) {
-        showToast('请输入或扫描资产信息', 'error');
-        return;
-    }
+            // ---------- 核心：智能解析资产号 ----------
+            function processAssetQuery(rawText) {
+                rawText = rawText.trim();
+                if (!rawText) { showToast('请输入或扫描资产信息', 'error'); return; }
+                let assetNo = rawText;
 
-    let assetNo = rawText;
+                // 尝试 JSON
+                try { const j = JSON.parse(rawText); if (j.assetNo) assetNo = j.assetNo; } catch(e) {}
 
-    // 1. 尝试解析JSON（兼容旧格式）
-    try {
-        const json = JSON.parse(rawText);
-        if (json.assetNo) assetNo = json.assetNo;
-    } catch (e) {}
+                // 从文本中提取“企业编号：”
+                const idMatch = rawText.match(/企业编号[：:]\s*(\S+)/);
+                if (idMatch) {
+                    assetNo = idMatch[1].trim();
+                    const nameMatch = rawText.match(/名称[：:]\s*(\S+)/);
+                    const personMatch = rawText.match(/使用人[：:]\s*(\S+)/);
+                    const deptMatch = rawText.match(/使用部门[：:]\s*(\S+)/);
 
-    // 2. 尝试从文本中提取“企业编号：”后面的内容（你现有的二维码格式）
-    const idMatch = rawText.match(/企业编号[：:]\s*(\S+)/);
-    if (idMatch) {
-        assetNo = idMatch[1].trim();
-        // 同时可以提取其他信息用于自动填充（可选）
-        const nameMatch = rawText.match(/名称[：:]\s*(\S+)/);
-        const personMatch = rawText.match(/使用人[：:]\s*(\S+)/);
-        const deptMatch = rawText.match(/使用部门[：:]\s*(\S+)/);
-
-        // 如果这个仪表不存在，自动创建一条基础记录
-        let meter = meters.find(m => m.assetNo === assetNo);
-        if (!meter) {
-            meter = {
-                id: generateId(),
-                assetNo: assetNo,
-                name: nameMatch ? nameMatch[1] : '',
-                type: '',   // 型号可以从文本提取，这里暂不处理
-                responsible: personMatch ? personMatch[1] : '',
-                location: deptMatch ? deptMatch[1] : '',
-                status: 'in-stock',
-            };
-            meters.push(meter);
-            saveMeters(meters);
-            updateStats();
-            renderDashboard();
-            showToast('自动添加了新仪表：' + assetNo, 'info');
-        } else {
-            // 如果已存在，可以更新部分信息（可选）
-            if (nameMatch && !meter.name) meter.name = nameMatch[1];
-            if (personMatch && !meter.responsible) meter.responsible = personMatch[1];
-            if (deptMatch && !meter.location) meter.location = deptMatch[1];
-            saveMeters(meters);
-        }
-    }
-
-    // 3. 正常查询
-    const meter = meters.find(m => m.assetNo === assetNo);
-    const card = document.getElementById('scanResultCard');
-    const infoDiv = document.getElementById('scanResultInfo');
-    const formDiv = document.getElementById('scanActionForm');
-    const title = document.getElementById('scanResultTitle');
-    const statusSpan = document.getElementById('scanResultStatus');
-
-    if (!meter) {
-        showToast(`未找到资产号: ${assetNo}`, 'error');
-        card.style.display = 'none';
-        return;
-    }
-
-    card.style.display = 'block';
-    title.textContent = `📟 ${meter.name || meter.assetNo}`;
-    statusSpan.innerHTML = meter.status === 'in-stock' ?
-        '<span class="tag-in-stock">在库</span>' :
-        '<span class="tag-borrowed">借出中</span>';
-
-    infoDiv.innerHTML = `
-        <p><strong>资产号：</strong>${meter.assetNo}</p>
-        <p><strong>名称：</strong>${meter.name || '-'}</p>
-        <p><strong>责任人：</strong>${meter.responsible || '-'}</p>
-        <p><strong>位置：</strong>${meter.location || '-'}</p>
-    `;
-
-    // 根据状态显示借用/归还表单（原有代码不变，此处省略）
-    if (meter.status === 'in-stock') {
-        formDiv.innerHTML = `
-            <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-                <div class="form-group">
-                    <label class="form-label">借用人姓名 *</label>
-                    <input type="text" class="form-input borrow-name" placeholder="姓名">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">借用人编号</label>
-                    <input type="text" class="form-input borrow-id" placeholder="工号">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">借用地点 *</label>
-                    <input type="text" class="form-input borrow-location" placeholder="例如：3号车间">
-                </div>
-                <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
-            </div>
-        `;
-        formDiv.querySelector('.btn-borrow-submit').addEventListener('click', () => {
-            const name = formDiv.querySelector('.borrow-name').value.trim();
-            const id = formDiv.querySelector('.borrow-id').value.trim();
-            const location = formDiv.querySelector('.borrow-location').value.trim();
-            if (!name || !location) {
-                showToast('请填写借用人姓名和借用地点', 'error');
-                return;
-            }
-            meter.status = 'borrowed';
-            meter.location = location;
-            const record = {
-                id: generateId(),
-                meterId: meter.id,
-                assetNo: meter.assetNo,
-                meterName: meter.name,
-                borrowerId: id,
-                borrowerName: name,
-                borrowLocation: location,
-                borrowTime: Date.now(),
-                returnTime: null,
-                status: 'borrowed',
-            };
-            records.unshift(record);
-            saveRecords(records);
-            saveMeters(meters);
-            showToast('借用登记成功', 'success');
-            processAssetQuery(meter.assetNo);
-            updateStats();
-            renderDashboard();
-        });
-    } else {
-        formDiv.innerHTML = `
-            <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-                <p><strong>当前借用人：</strong>${records.find(r => r.meterId === meter.id && r.status === 'borrowed')?.borrowerName || '未知'}</p>
-                <button class="btn btn-success btn-block btn-return-submit">🔄 归还仪表</button>
-            </div>
-        `;
-        formDiv.querySelector('.btn-return-submit').addEventListener('click', () => {
-            meter.status = 'in-stock';
-            const activeRecord = records.find(r => r.meterId === meter.id && r.status === 'borrowed');
-            if (activeRecord) {
-                activeRecord.returnTime = Date.now();
-                activeRecord.status = 'returned';
-            }
-            saveRecords(records);
-            saveMeters(meters);
-            showToast('归还成功', 'success');
-            processAssetQuery(meter.assetNo);
-            updateStats();
-            renderDashboard();
-        });
-    }
-}
-                const card = document.getElementById('scanResultCard');
-                const infoDiv = document.getElementById('scanResultInfo');
-                const formDiv = document.getElementById('scanActionForm');
-                const title = document.getElementById('scanResultTitle');
-                const statusSpan = document.getElementById('scanResultStatus');
-
-                if (!meter) {
-                    showToast(`未找到资产号: ${assetNo}`, 'error');
-                    card.style.display = 'none';
-                    return;
+                    let meter = meters.find(m => m.assetNo === assetNo);
+                    if (!meter) {
+                        meter = {
+                            id: generateId(),
+                            assetNo: assetNo,
+                            name: nameMatch ? nameMatch[1] : '',
+                            type: '',
+                            responsible: personMatch ? personMatch[1] : '',
+                            location: deptMatch ? deptMatch[1] : '',
+                            status: 'in-stock'
+                        };
+                        meters.push(meter);
+                        saveMeters(meters);
+                        updateStats();
+                        renderDashboard();
+                        showToast('自动添加了新仪表：' + assetNo, 'info');
+                    } else {
+                        if (nameMatch && !meter.name) meter.name = nameMatch[1];
+                        if (personMatch && !meter.responsible) meter.responsible = personMatch[1];
+                        if (deptMatch && !meter.location) meter.location = deptMatch[1];
+                        saveMeters(meters);
+                    }
                 }
 
+                const meter = meters.find(m => m.assetNo === assetNo);
+                const card = document.getElementById('scanResultCard');
+                if (!meter) { showToast(`未找到资产号: ${assetNo}`, 'error'); card.style.display = 'none'; return; }
+
                 card.style.display = 'block';
-                title.textContent = `📟 ${meter.name || meter.assetNo}`;
-                statusSpan.innerHTML = meter.status === 'in-stock' ?
-                    '<span class="tag-in-stock">在库</span>' :
-                    '<span class="tag-borrowed">借出中</span>';
-
-                infoDiv.innerHTML = `
+                document.getElementById('scanResultTitle').textContent = `📟 ${meter.name || meter.assetNo}`;
+                document.getElementById('scanResultStatus').innerHTML = meter.status === 'in-stock' ? '<span class="tag-in-stock">在库</span>' : '<span class="tag-borrowed">借出中</span>';
+                document.getElementById('scanResultInfo').innerHTML = `
                     <p><strong>资产号：</strong>${meter.assetNo}</p>
-                    <p><strong>型号：</strong>${meter.type || '-'}</p>
-                    <p><strong>责任人：</strong>${meter.responsible || '-'}</p>
-                    <p><strong>当前位置：</strong>${meter.location || '-'}</p>
-                `;
+                    <p><strong>名称：</strong>${meter.name||'-'}</p>
+                    <p><strong>责任人：</strong>${meter.responsible||'-'}</p>
+                    <p><strong>位置：</strong>${meter.location||'-'}</p>`;
 
-                // 根据状态显示不同表单
+                const formDiv = document.getElementById('scanActionForm');
                 if (meter.status === 'in-stock') {
                     formDiv.innerHTML = `
                         <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-                            <div class="form-group">
-                                <label class="form-label">借用人姓名 *</label>
-                                <input type="text" class="form-input borrow-name" placeholder="姓名">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">借用人编号</label>
-                                <input type="text" class="form-input borrow-id" placeholder="工号">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">借用地点 *</label>
-                                <input type="text" class="form-input borrow-location" placeholder="例如：3号车间">
-                            </div>
+                            <div class="form-group"><label class="form-label">借用人姓名 *</label><input type="text" class="form-input borrow-name" placeholder="姓名"></div>
+                            <div class="form-group"><label class="form-label">借用人编号</label><input type="text" class="form-input borrow-id" placeholder="工号"></div>
+                            <div class="form-group"><label class="form-label">借用地点 *</label><input type="text" class="form-input borrow-location" placeholder="例如：3号车间"></div>
                             <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
-                        </div>
-                    `;
-                    // 绑定借用事件
+                        </div>`;
                     formDiv.querySelector('.btn-borrow-submit').addEventListener('click', () => {
                         const name = formDiv.querySelector('.borrow-name').value.trim();
                         const id = formDiv.querySelector('.borrow-id').value.trim();
-                        const location = formDiv.querySelector('.borrow-location').value.trim();
-                        if (!name || !location) {
-                            showToast('请填写借用人姓名和借用地点', 'error');
-                            return;
-                        }
-                        // 更新仪表状态
-                        meter.status = 'borrowed';
-                        meter.location = location;
-                        // 添加借用记录
-                        const record = {
-                            id: generateId(),
-                            meterId: meter.id,
-                            assetNo: meter.assetNo,
-                            meterName: meter.name,
-                            borrowerId: id,
-                            borrowerName: name,
-                            borrowLocation: location,
-                            borrowTime: Date.now(),
-                            returnTime: null,
-                            status: 'borrowed',
-                        };
-                        records.unshift(record);
-                        saveRecords(records);
-                        saveMeters(meters);
+                        const loc = formDiv.querySelector('.borrow-location').value.trim();
+                        if (!name || !loc) { showToast('请填写借用人姓名和借用地点', 'error'); return; }
+                        meter.status = 'borrowed'; meter.location = loc;
+                        records.unshift({ id: generateId(), meterId: meter.id, assetNo: meter.assetNo, meterName: meter.name, borrowerId: id, borrowerName: name, borrowLocation: loc, borrowTime: Date.now(), returnTime: null, status: 'borrowed' });
+                        saveRecords(records); saveMeters(meters);
                         showToast('借用登记成功', 'success');
-                        // 重新渲染当前查询结果
-                        processAssetQuery(meter.assetNo);
-                        updateStats();
-                        renderDashboard();
+                        processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
                     });
                 } else {
-                    // 已借出，显示归还按钮
+                    const activeRec = records.find(r => r.meterId === meter.id && r.status === 'borrowed');
                     formDiv.innerHTML = `
                         <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-                            <p><strong>当前借用人：</strong>${records.find(r => r.meterId === meter.id && r.status === 'borrowed')?.borrowerName || '未知'}</p>
+                            <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'}</p>
                             <button class="btn btn-success btn-block btn-return-submit">🔄 归还仪表</button>
-                        </div>
-                    `;
+                        </div>`;
                     formDiv.querySelector('.btn-return-submit').addEventListener('click', () => {
                         meter.status = 'in-stock';
-                        // 更新对应的借用记录为已归还
-                        const activeRecord = records.find(r => r.meterId === meter.id && r.status ===
-                            'borrowed');
-                        if (activeRecord) {
-                            activeRecord.returnTime = Date.now();
-                            activeRecord.status = 'returned';
-                        }
-                        saveRecords(records);
-                        saveMeters(meters);
+                        if (activeRec) { activeRec.returnTime = Date.now(); activeRec.status = 'returned'; }
+                        saveRecords(records); saveMeters(meters);
                         showToast('归还成功', 'success');
-                        processAssetQuery(meter.assetNo);
-                        updateStats();
-                        renderDashboard();
+                        processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
                     });
                 }
             }
 
-            // 手动查询按钮
             document.getElementById('btnManualQuery').addEventListener('click', () => {
-                const val = document.getElementById('manualQrInput').value.trim();
-                processAssetQuery(val);
+                processAssetQuery(document.getElementById('manualQrInput').value);
             });
             document.getElementById('manualQrInput').addEventListener('keypress', e => {
-                if (e.key === 'Enter') {
-                    processAssetQuery(e.target.value);
-                }
+                if (e.key === 'Enter') processAssetQuery(e.target.value);
             });
 
             // ---------- 摄像头扫码 ----------
             let html5QrCode = null;
             document.getElementById('btnStartScan').addEventListener('click', () => {
-                const readerEl = document.getElementById('qr-reader');
                 document.getElementById('scanPlaceholder').style.display = 'none';
-                if (!html5QrCode) {
-                    html5QrCode = new Html5Qrcode("qr-reader");
-                }
+                if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
                 html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
                     (decodedText) => {
-                        // 扫描成功
                         document.getElementById('manualQrInput').value = decodedText;
                         processAssetQuery(decodedText);
-                        // 可选停止扫描
                         html5QrCode.stop().then(() => {
                             document.getElementById('btnStartScan').style.display = 'inline-flex';
                             document.getElementById('btnStopScan').style.display = 'none';
                         }).catch(err => console.log(err));
-                        vibrate(100);
                     },
                     (errorMessage) => {})
-                    .then(() => {
-                        document.getElementById('btnStartScan').style.display = 'none';
-                        document.getElementById('btnStopScan').style.display = 'inline-flex';
-                    })
-                    .catch(err => {
-                        showToast('摄像头启动失败: ' + err, 'error');
-                    });
+                .then(() => {
+                    document.getElementById('btnStartScan').style.display = 'none';
+                    document.getElementById('btnStopScan').style.display = 'inline-flex';
+                })
+                .catch(err => showToast('摄像头启动失败: ' + err, 'error'));
             });
             document.getElementById('btnStopScan').addEventListener('click', () => {
                 if (html5QrCode) {
@@ -1103,67 +441,46 @@ function processAssetQuery(input) {
                 }
             });
 
-            function vibrate(ms = 50) {
-                if (navigator.vibrate) navigator.vibrate(ms);
-            }
-
-            // ---------- 借用记录页 ----------
-            function renderRecords(searchTerm = '') {
-                const listEl = document.getElementById('recordList');
-                const emptyEl = document.getElementById('emptyRecords');
+            // ---------- 记录 ----------
+            function renderRecords(searchTerm='') {
+                const listEl = document.getElementById('recordList'), emptyEl = document.getElementById('emptyRecords');
                 let filtered = records;
                 if (searchTerm) {
                     const t = searchTerm.toLowerCase();
-                    filtered = filtered.filter(r => r.assetNo.toLowerCase().includes(t) || r.borrowerName
-                        .toLowerCase().includes(t));
+                    filtered = filtered.filter(r => r.assetNo.toLowerCase().includes(t) || r.borrowerName.toLowerCase().includes(t));
                 }
-                if (filtered.length === 0) {
-                    listEl.innerHTML = '';
-                    emptyEl.style.display = 'block';
-                } else {
+                if (filtered.length === 0) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; }
+                else {
                     emptyEl.style.display = 'none';
                     listEl.innerHTML = filtered.map(r => `
                         <div class="card" style="font-size:0.9rem;">
-                            <div><strong>${r.assetNo}</strong> ${r.meterName || ''}</div>
-                            <div>借用人: ${r.borrowerName} (${r.borrowerId || '-'})</div>
+                            <div><strong>${r.assetNo}</strong> ${r.meterName||''}</div>
+                            <div>借用人: ${r.borrowerName} (${r.borrowerId||'-'})</div>
                             <div>借用地点: ${r.borrowLocation}</div>
                             <div>借用时间: ${formatTime(r.borrowTime)}</div>
                             <div>归还时间: ${r.returnTime ? formatTime(r.returnTime) : '<span style="color:#e67e22">未归还</span>'}</div>
-                        </div>
-                    `).join('');
+                        </div>`).join('');
                 }
             }
-
             document.getElementById('searchRecord').addEventListener('input', e => renderRecords(e.target.value));
             document.getElementById('btnExportCSV').addEventListener('click', () => {
                 let csv = '资产号,仪表名称,借用人,借用人编号,借用地点,借用时间,归还时间,状态\n';
-                records.forEach(r => {
-                    csv +=
-                        `${r.assetNo},${r.meterName},${r.borrowerName},${r.borrowerId || ''},${r.borrowLocation},${formatTime(r.borrowTime)},${r.returnTime ? formatTime(r.returnTime) : ''},${r.status}\n`;
-                });
-                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                records.forEach(r => { csv += `${r.assetNo},${r.meterName},${r.borrowerName},${r.borrowerId||''},${r.borrowLocation},${formatTime(r.borrowTime)},${r.returnTime?formatTime(r.returnTime):''},${r.status}\n`; });
+                const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = '借用记录.csv';
-                a.click();
-                URL.revokeObjectURL(url);
+                const a = document.createElement('a'); a.href=url; a.download='借用记录.csv'; a.click(); URL.revokeObjectURL(url);
                 showToast('导出成功', 'success');
             });
 
-            // ---------- 管理页 ----------
+            // ---------- 管理 ----------
             function renderManageMeterList() {
                 const listEl = document.getElementById('manageMeterList');
                 listEl.innerHTML = meters.map(m => `
                     <div class="meter-item" data-id="${m.id}">
                         <div class="meter-avatar">📟</div>
-                        <div class="meter-info">
-                            <div class="meter-name">${m.name || '未命名'}</div>
-                            <div class="meter-asset">${m.assetNo} | ${m.location || ''}</div>
-                        </div>
-                        <span class="meter-status-tag ${m.status === 'in-stock' ? 'tag-in-stock' : 'tag-borrowed'}">${m.status === 'in-stock' ? '在库' : '借出'}</span>
-                    </div>
-                `).join('');
+                        <div class="meter-info"><div class="meter-name">${m.name||'未命名'}</div><div class="meter-asset">${m.assetNo} | ${m.location||''}</div></div>
+                        <span class="meter-status-tag ${m.status==='in-stock'?'tag-in-stock':'tag-borrowed'}">${m.status==='in-stock'?'在库':'借出'}</span>
+                    </div>`).join('');
                 listEl.querySelectorAll('.meter-item').forEach(item => {
                     item.addEventListener('click', () => {
                         const meter = meters.find(m => m.id === item.dataset.id);
@@ -1172,10 +489,8 @@ function processAssetQuery(input) {
                             document.getElementById('formAssetNo').value = meter.assetNo;
                             document.getElementById('formName').value = meter.name || '';
                             document.getElementById('formType').value = meter.type || '';
-                            document.getElementById('formResponsible').value = meter.responsible ||
-                                '';
+                            document.getElementById('formResponsible').value = meter.responsible || '';
                             document.getElementById('formLocation').value = meter.location || '';
-                            switchPage('page-manage'); // 确保在管理页
                         }
                     });
                 });
@@ -1197,72 +512,48 @@ function processAssetQuery(input) {
                     }
                 } else {
                     meters.push({
-                        id: generateId(),
-                        assetNo,
+                        id: generateId(), assetNo,
                         name: document.getElementById('formName').value.trim(),
                         type: document.getElementById('formType').value.trim(),
                         responsible: document.getElementById('formResponsible').value.trim(),
                         location: document.getElementById('formLocation').value.trim(),
-                        status: 'in-stock',
+                        status: 'in-stock'
                     });
                 }
-                saveMeters(meters);
-                updateStats();
-                renderManageMeterList();
-                document.getElementById('meterForm').reset();
-                document.getElementById('editMeterId').value = '';
-                showToast('保存成功', 'success');
-                renderDashboard();
+                saveMeters(meters); updateStats(); renderManageMeterList();
+                document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
+                showToast('保存成功', 'success'); renderDashboard();
             });
             document.getElementById('btnClearForm').addEventListener('click', () => {
-                document.getElementById('meterForm').reset();
-                document.getElementById('editMeterId').value = '';
+                document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
             });
             document.getElementById('btnAddSample').addEventListener('click', () => {
-                meters = getDefaultMeters();
-                saveMeters(meters);
-                updateStats();
-                renderManageMeterList();
-                renderDashboard();
+                meters = getDefaultMeters(); saveMeters(meters); updateStats(); renderManageMeterList(); renderDashboard();
                 showToast('已添加示例仪表', 'info');
             });
             document.getElementById('btnClearAll').addEventListener('click', () => {
-                if (confirm('确定清空所有仪表和记录吗？此操作不可恢复。')) {
-                    meters = [];
-                    records = [];
-                    saveMeters(meters);
-                    saveRecords(records);
-                    updateStats();
-                    renderManageMeterList();
-                    renderDashboard();
-                    renderRecords();
+                if (confirm('确定清空所有仪表和记录吗？')) {
+                    meters = []; records = []; saveMeters(meters); saveRecords(records);
+                    updateStats(); renderManageMeterList(); renderDashboard(); renderRecords();
                     showToast('已清空', 'warning');
                 }
             });
 
-            // ---------- 🚀 支付宝/微信扫码自动识别（URL参数） ----------
+            // ---------- URL参数（支付宝扫码） ----------
             function handleUrlParams() {
                 const params = new URLSearchParams(window.location.search);
                 const asset = params.get('asset');
                 if (asset) {
-                    // 自动跳转到扫码页并查询
                     switchPage('page-scan');
                     document.getElementById('manualQrInput').value = asset;
                     processAssetQuery(asset);
                 }
             }
-            // 页面加载时执行
             window.addEventListener('DOMContentLoaded', () => {
-                updateStats();
-                renderDashboard();
-                renderRecords();
-                renderManageMeterList();
-                handleUrlParams(); // 处理扫码进来的参数
+                updateStats(); renderDashboard(); renderRecords(); renderManageMeterList(); handleUrlParams();
             });
-
-            // 注册Service Worker（PWA离线缓存）
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(() => {});
+                navigator.serviceWorker.register('sw.js').catch(()=>{});
             }
         })();
     </script>
