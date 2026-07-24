@@ -82,6 +82,7 @@
         .record-actions { margin-top:8px; display:flex; gap:8px; }
         .filter-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; align-items:center; }
         .filter-row .form-input, .filter-row .form-select { flex:1; min-width:120px; }
+        .meter-item .meter-actions { margin-left:auto; display:flex; gap:6px; }
     </style>
 </head>
 <body>
@@ -203,7 +204,7 @@
                 </form>
             </div>
             <div class="card">
-                <div class="card-title">📋 仪表列表（点击编辑）</div>
+                <div class="card-title">📋 仪表列表（点击编辑，红色删除）</div>
                 <div style="margin-bottom:10px;">
                     <input type="text" class="form-input" id="manageSearch" placeholder="🔍 搜索资产号/名称/型号...">
                 </div>
@@ -276,7 +277,8 @@
             const ADMIN_PASSWORD = 'admin123';
             let isAdminAuthenticated = false;
             let pendingPageId = null;
-            let pendingDeleteId = null;
+            let pendingDeleteId = null;       // 待删除记录ID
+            let pendingDeleteMeterId = null; // 待删除仪表资产号
             let meters = [];
             let records = [];
 
@@ -293,22 +295,56 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
-            // 密码弹窗
+            // 密码弹窗回调（支持管理页进入、记录删除、仪表删除）
             document.getElementById('pwdConfirm').addEventListener('click', async () => {
                 const pwd = document.getElementById('pwdInput').value;
                 if (pwd !== ADMIN_PASSWORD) { document.getElementById('pwdError').style.display = 'block'; return; }
                 document.getElementById('pwdError').style.display = 'none';
                 document.getElementById('pwdModal').classList.remove('active');
-                if (pendingDeleteId) { await executeDelete(pendingDeleteId); pendingDeleteId = null; }
-                else if (pendingPageId) { isAdminAuthenticated = true; switchPage(pendingPageId); }
+                if (pendingDeleteId) {
+                    await executeDeleteRecord(pendingDeleteId);
+                    pendingDeleteId = null;
+                } else if (pendingDeleteMeterId) {
+                    await executeDeleteMeter(pendingDeleteMeterId);
+                    pendingDeleteMeterId = null;
+                } else if (pendingPageId) {
+                    isAdminAuthenticated = true;
+                    switchPage(pendingPageId);
+                }
             });
             document.getElementById('pwdCancel').addEventListener('click', () => {
                 document.getElementById('pwdModal').classList.remove('active');
-                pendingDeleteId = null; pendingPageId = null;
+                pendingDeleteId = null;
+                pendingDeleteMeterId = null;
+                pendingPageId = null;
             });
-            function showPwdModalForDelete(id) { pendingDeleteId = id; document.getElementById('pwdModal').classList.add('active'); }
-            function showPwdModalForPage(id) { pendingPageId = id; document.getElementById('pwdModal').classList.add('active'); }
-            async function executeDelete(recordId) {
+
+            function showPwdModalForRecord(id) {
+                pendingDeleteId = id;
+                pendingDeleteMeterId = null;
+                pendingPageId = null;
+                document.getElementById('pwdInput').value = '';
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.add('active');
+            }
+            function showPwdModalForMeter(assetNo) {
+                pendingDeleteMeterId = assetNo;
+                pendingDeleteId = null;
+                pendingPageId = null;
+                document.getElementById('pwdInput').value = '';
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.add('active');
+            }
+            function showPwdModalForPage(id) {
+                pendingPageId = id;
+                pendingDeleteId = null;
+                pendingDeleteMeterId = null;
+                document.getElementById('pwdInput').value = '';
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.add('active');
+            }
+
+            async function executeDeleteRecord(recordId) {
                 const idx = records.findIndex(r => r.id === recordId);
                 if (idx === -1) return;
                 const rec = records[idx];
@@ -321,7 +357,25 @@
                 updateStats(); renderDashboard(); renderRecords();
                 showToast('记录已删除', 'success');
             }
-            window.deleteRecordWithAuth = (id) => showPwdModalForDelete(id);
+
+            async function executeDeleteMeter(assetNo) {
+                const meterIdx = meters.findIndex(m => m.assetNo === assetNo);
+                if (meterIdx === -1) { showToast('仪表不存在', 'error'); return; }
+                // 删除所有关联的借用记录
+                records = records.filter(r => r.assetNo !== assetNo);
+                // 删除仪表
+                meters.splice(meterIdx, 1);
+                await saveMeters(meters);
+                await saveRecords(records);
+                updateStats();
+                renderDashboard();
+                renderManageMeterList();
+                renderRecords();
+                showToast('仪表已删除', 'success');
+            }
+
+            window.deleteRecordWithAuth = (id) => showPwdModalForRecord(id);
+            window.deleteMeterWithAuth = (assetNo) => showPwdModalForMeter(assetNo);
 
             function switchPage(pageId) {
                 if (pageId === 'page-manage' && !isAdminAuthenticated) { showPwdModalForPage(pageId); return; }
@@ -439,7 +493,6 @@
                 renderDashboard();
             });
 
-            // 增强的字段提取
             function extractFields(text) {
                 const clean = text.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+(>|$)/g, '');
                 const fields = {};
@@ -578,7 +631,6 @@
             document.getElementById('btnManualQuery').addEventListener('click', () => processAssetQuery(document.getElementById('manualQrInput').value));
             document.getElementById('manualQrInput').addEventListener('keypress', e => { if (e.key === 'Enter') processAssetQuery(e.target.value); });
 
-            // 摄像头扫描
             let html5QrCode = null;
             function updateScanStatus(msg, isError=false) {
                 const el = document.getElementById('scanStatusMsg'); el.textContent = msg; el.style.color = isError ? '#d93025' : '#1a73e8';
@@ -637,7 +689,6 @@
                 const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='借用记录.csv'; a.click(); URL.revokeObjectURL(url);
             });
 
-            // 管理页搜索与列表
             function renderManageMeterList() {
                 const searchTerm = document.getElementById('manageSearch').value.trim().toLowerCase();
                 const filtered = meters.filter(m => {
@@ -653,6 +704,9 @@
                         <div class="meter-avatar">📟</div>
                         <div class="meter-info"><div class="meter-name">${m.name||'未命名'}</div><div class="meter-asset">${m.assetNo} | ${m.model||''}</div></div>
                         <span class="meter-status-tag ${m.status==='in-stock'?'tag-in-stock':'tag-borrowed'}">${m.status==='in-stock'?'在库':'借出'}</span>
+                        <div class="meter-actions">
+                            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteMeterWithAuth('${m.assetNo}')">🗑 删除</button>
+                        </div>
                     </div>`).join('');
                 listEl.querySelectorAll('.meter-item').forEach(item => {
                     item.addEventListener('click', function() {
@@ -740,7 +794,6 @@
                 }
             });
 
-            // Excel 导入，处理日期
             function excelSerialToDate(serial) {
                 if (typeof serial === 'number') {
                     const utcDays = Math.floor(serial - 25569);
