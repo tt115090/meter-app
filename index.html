@@ -113,8 +113,101 @@
         </div>
     </div>
     <div class="main-content">
-        <!-- 总览、扫码、记录、管理页结构同前，省略以确保重点 -->
-        <!-- 为节省篇幅，以下只列出关键脚本和修改部分，完整结构请参考之前代码 -->
+        <div class="page active" id="page-dashboard">
+            <div class="filter-tags" id="statusFilter">
+                <span class="filter-tag active" data-filter="all">全部</span>
+                <span class="filter-tag" data-filter="in-stock">🟢 在库</span>
+                <span class="filter-tag" data-filter="borrowed">🟠 借出</span>
+            </div>
+            <div class="filter-row">
+                <input type="text" class="form-input" id="filterModel" placeholder="型号">
+                <input type="text" class="form-input" id="filterLocation" placeholder="位置">
+                <input type="date" class="form-input" id="filterExpireFrom" placeholder="有效期从">
+                <input type="date" class="form-input" id="filterExpireTo" placeholder="有效期至">
+                <button class="btn btn-outline btn-sm" id="btnClearFilter">重置</button>
+            </div>
+            <div id="meterList"></div>
+            <div class="empty-state" id="emptyMeters" style="display:none;"><div>📭</div><p>暂无匹配的仪表</p></div>
+        </div>
+        <div class="page" id="page-scan">
+            <div class="card">
+                <div class="card-title">📷 摄像头扫描</div>
+                <div id="qr-reader"></div>
+                <div class="scan-placeholder" id="scanPlaceholder">点击下方按钮启动摄像头</div>
+                <div id="scanStatusMsg"></div>
+                <div style="display:flex;gap:8px;margin-top:10px;justify-content:center;">
+                    <button class="btn btn-primary" id="btnStartScan">🔍 开始扫描</button>
+                    <button class="btn btn-outline" id="btnStopScan" style="display:none;">⏹ 停止扫描</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">⌨️ 手动输入 / 粘贴</div>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" class="form-input" id="manualQrInput" placeholder="输入资产号或粘贴完整文本" style="flex:1;">
+                    <button class="btn btn-primary" id="btnManualQuery">查询</button>
+                </div>
+                <p style="font-size:0.75rem;color:#999;margin-top:6px;">支持粘贴支付宝扫出的完整信息，自动提取字段</p>
+            </div>
+            <div class="card" id="scanResultCard" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title" id="scanResultTitle">📋 扫描结果</div>
+                    <span id="scanResultStatus"></span>
+                </div>
+                <div id="scanResultInfo"></div>
+                <div id="scanActionForm"></div>
+            </div>
+        </div>
+        <div class="page" id="page-records">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <input type="text" class="form-input" id="searchRecord" placeholder="🔍 搜索资产号/借用人..." style="flex:1;">
+                <button class="btn btn-outline btn-sm" id="btnExportCSV">📥 导出CSV</button>
+            </div>
+            <div id="recordList"></div>
+            <div class="empty-state" id="emptyRecords" style="display:none;"><div>📝</div><p>暂无借用记录</p></div>
+        </div>
+        <div class="page" id="page-manage">
+            <div class="card">
+                <div class="card-title">➕ 添加/编辑仪表</div>
+                <form id="meterForm">
+                    <input type="hidden" id="editMeterId">
+                    <div class="form-group"><label class="form-label">资产号 *</label><input type="text" class="form-input" id="formAssetNo" required placeholder="企业编号"></div>
+                    <div class="form-group"><label class="form-label">名称</label><input type="text" class="form-input" id="formName"></div>
+                    <div class="form-group"><label class="form-label">型号</label><input type="text" class="form-input" id="formModel"></div>
+                    <div class="form-group"><label class="form-label">出厂编号</label><input type="text" class="form-input" id="formSerial"></div>
+                    <div class="form-group"><label class="form-label">年代</label><input type="text" class="form-input" id="formYear"></div>
+                    <div class="form-group"><label class="form-label">使用部门</label><input type="text" class="form-input" id="formDept"></div>
+                    <div class="form-group"><label class="form-label">二级部门</label><input type="text" class="form-input" id="formSubDept"></div>
+                    <div class="form-group"><label class="form-label">责任人</label><input type="text" class="form-input" id="formUser"></div>
+                    <div class="form-group"><label class="form-label">存放位置</label><input type="text" class="form-input" id="formLocation"></div>
+                    <div class="form-group"><label class="form-label">有效期</label><input type="date" class="form-input" id="formExpireDate"></div>
+                    <div class="form-group"><label class="form-label">技术指标</label><input type="text" class="form-input" id="formSpec"></div>
+                    <div class="form-group"><label class="form-label">总价</label><input type="text" class="form-input" id="formPrice"></div>
+                    <div class="form-group"><label class="form-label">检定日期</label><input type="date" class="form-input" id="formCalibrationDate"></div>
+                    <div class="form-group"><label class="form-label">管理状态</label><input type="text" class="form-input" id="formManageStatus"></div>
+                    <div class="form-group"><label class="form-label">技术状态</label><input type="text" class="form-input" id="formTechStatus"></div>
+                    <div class="form-group"><label class="form-label">借用部门</label><input type="text" class="form-input" id="formBorrowDept"></div>
+                    <div class="form-group"><label class="form-label">借用人</label><input type="text" class="form-input" id="formBorrower"></div>
+                    <div class="form-group"><label class="form-label">检定方式</label><input type="text" class="form-input" id="formCalibrationMethod"></div>
+                    <div class="form-group"><label class="form-label">管理类别</label><input type="text" class="form-input" id="formManageCategory"></div>
+                    <div class="form-group"><label class="form-label">安检</label><input type="text" class="form-input" id="formSecurityCheck"></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button type="submit" class="btn btn-primary" id="btnSaveMeter">💾 保存</button>
+                        <button type="button" class="btn btn-outline" id="btnClearForm">🔄 清空</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card">
+                <div class="card-title">📋 仪表列表（点击编辑）</div>
+                <div id="manageMeterList"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">🛠 批量操作</div>
+                <button class="btn btn-outline btn-sm" id="btnAddSample">📦 添加示例</button>
+                <button class="btn btn-danger btn-sm" id="btnClearAll" style="margin-left:8px;">🗑 清空全部</button>
+                <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none;">
+                <button class="btn btn-primary btn-sm" id="btnImportExcel" style="margin-left:8px;">📥 导入Excel</button>
+            </div>
+        </div>
     </div>
     <div class="bottom-nav" id="bottomNav">
         <button class="nav-item active" data-page="page-dashboard"><span class="nav-icon">📋</span>仪表总览</button>
@@ -124,15 +217,220 @@
     </div>
     <script>
         (function() {
-            // Supabase 配置保持不变
+            // Supabase 配置
             const SUPABASE_URL = 'https://yxzsestiwiznhsecrnec.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4enNlc3Rpd2l6bmhzZWNybmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MTExNTYsImV4cCI6MjEwMDM4NzE1Nn0.VYwxJqNhxYHMpYoJmef1OR9z1SUL-aUvGK9uEgXtnTI';
 
-            // 数据操作、密码管理、页面导航等函数不变（略）
+            async function supabaseFetch(path, method = 'GET', body = null) {
+                const url = `${SUPABASE_URL}/rest/v1/${path}`;
+                const headers = {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': method === 'GET' ? '' : 'return=representation'
+                };
+                const options = { method, headers };
+                if (body) options.body = JSON.stringify(body);
+                const res = await fetch(url, options);
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(`网络错误 ${res.status}: ${errText}`);
+                }
+                if (method === 'DELETE') return null;
+                return res.json();
+            }
 
-            // ---------- 增强的字段提取（支持多行和常见标签） ----------
+            async function loadMeters() {
+                const data = await supabaseFetch('meters?select=data');
+                return data.map(row => row.data);
+            }
+
+            async function saveMeters(meters) {
+                await supabaseFetch('meters?data=not.is.null', 'DELETE');
+                if (meters.length === 0) return;
+                const batch = meters.map(m => ({ data: m }));
+                try {
+                    await supabaseFetch('meters', 'POST', batch);
+                } catch (e) {
+                    console.warn('批量插入失败，改用逐条插入:', e);
+                    for (const item of batch) {
+                        try { await supabaseFetch('meters', 'POST', item); } catch (err) {}
+                    }
+                }
+            }
+
+            async function loadRecords() {
+                const data = await supabaseFetch('records?select=data&order=data->>borrowTime.desc');
+                return data.map(row => row.data);
+            }
+
+            async function saveRecords(records) {
+                await supabaseFetch('records?data=not.is.null', 'DELETE');
+                if (records.length === 0) return;
+                const batch = records.map(r => ({ data: r }));
+                try {
+                    await supabaseFetch('records', 'POST', batch);
+                } catch (e) {
+                    for (const item of batch) {
+                        try { await supabaseFetch('records', 'POST', item); } catch (err) {}
+                    }
+                }
+            }
+
+            const ADMIN_PASSWORD = 'admin123';
+            let isAdminAuthenticated = false;
+            let pendingPageId = null;
+            let pendingDeleteId = null;
+            let meters = [];
+            let records = [];
+
+            function generateId() { return Date.now() + '_' + Math.random().toString(36).substr(2,6); }
+            function formatTime(ts) {
+                if (!ts) return '-';
+                const d = new Date(ts), pad = n => String(n).padStart(2,'0');
+                return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            }
+            function showToast(msg, type='info') {
+                const c = document.getElementById('toastContainer');
+                const t = document.createElement('div');
+                t.className = `toast ${type}`; t.textContent = msg;
+                c.appendChild(t); setTimeout(() => t.remove(), 2600);
+            }
+
+            // 密码弹窗
+            document.getElementById('pwdConfirm').addEventListener('click', async () => {
+                const pwd = document.getElementById('pwdInput').value;
+                if (pwd !== ADMIN_PASSWORD) { document.getElementById('pwdError').style.display = 'block'; return; }
+                document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.remove('active');
+                if (pendingDeleteId) { await executeDelete(pendingDeleteId); pendingDeleteId = null; }
+                else if (pendingPageId) { isAdminAuthenticated = true; switchPage(pendingPageId); }
+            });
+            document.getElementById('pwdCancel').addEventListener('click', () => {
+                document.getElementById('pwdModal').classList.remove('active');
+                pendingDeleteId = null; pendingPageId = null;
+            });
+            function showPwdModalForDelete(id) { pendingDeleteId = id; document.getElementById('pwdModal').classList.add('active'); }
+            function showPwdModalForPage(id) { pendingPageId = id; document.getElementById('pwdModal').classList.add('active'); }
+            async function executeDelete(recordId) {
+                const idx = records.findIndex(r => r.id === recordId);
+                if (idx === -1) return;
+                const rec = records[idx];
+                if (rec.status === 'borrowed') {
+                    const meter = meters.find(m => m.assetNo === rec.assetNo);
+                    if (meter) meter.status = 'in-stock';
+                }
+                records.splice(idx, 1);
+                await saveRecords(records); await saveMeters(meters);
+                updateStats(); renderDashboard(); renderRecords();
+                showToast('记录已删除', 'success');
+            }
+            window.deleteRecordWithAuth = (id) => showPwdModalForDelete(id);
+
+            function switchPage(pageId) {
+                if (pageId === 'page-manage' && !isAdminAuthenticated) { showPwdModalForPage(pageId); return; }
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById(pageId).classList.add('active');
+                document.querySelectorAll('.desktop-tab').forEach(t => t.classList.remove('active'));
+                const dt = document.querySelector(`.desktop-tab[data-page="${pageId}"]`);
+                if (dt) dt.classList.add('active');
+                document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+                const bn = document.querySelector(`.bottom-nav .nav-item[data-page="${pageId}"]`);
+                if (bn) bn.classList.add('active');
+                if (pageId === 'page-dashboard') renderDashboard();
+                if (pageId === 'page-records') renderRecords();
+                if (pageId === 'page-manage') renderManageMeterList();
+            }
+
+            document.getElementById('desktopTabs').addEventListener('click', e => {
+                const tab = e.target.closest('.desktop-tab');
+                if (tab) switchPage(tab.dataset.page);
+            });
+            document.getElementById('bottomNav').addEventListener('click', e => {
+                const item = e.target.closest('.nav-item');
+                if (item) switchPage(item.dataset.page);
+            });
+
+            function updateStats() {
+                document.getElementById('totalCount').textContent = meters.length;
+                document.getElementById('inStockCount').textContent = meters.filter(m => m.status === 'in-stock').length;
+                document.getElementById('borrowedCount').textContent = meters.filter(m => m.status === 'borrowed').length;
+            }
+
+            function getExpireStatus(m) {
+                if (!m.expireDate) return null;
+                const now = new Date();
+                const expire = new Date(m.expireDate);
+                const diffDays = Math.ceil((expire - now) / (1000 * 60 * 60 * 24));
+                if (diffDays < 0) return 'expired';
+                if (diffDays <= 30) return 'expiring';
+                return null;
+            }
+
+            function renderDashboard() {
+                const listEl = document.getElementById('meterList'), emptyEl = document.getElementById('emptyMeters');
+                const statusFilter = document.querySelector('#statusFilter .filter-tag.active')?.dataset.filter || 'all';
+                const modelFilter = document.getElementById('filterModel').value.trim().toLowerCase();
+                const locationFilter = document.getElementById('filterLocation').value.trim().toLowerCase();
+                const expireFrom = document.getElementById('filterExpireFrom').value;
+                const expireTo = document.getElementById('filterExpireTo').value;
+
+                let filtered = meters;
+                if (statusFilter === 'in-stock') filtered = filtered.filter(m => m.status === 'in-stock');
+                else if (statusFilter === 'borrowed') filtered = filtered.filter(m => m.status === 'borrowed');
+                if (modelFilter) filtered = filtered.filter(m => m.model && m.model.toLowerCase().includes(modelFilter));
+                if (locationFilter) filtered = filtered.filter(m => m.location && m.location.toLowerCase().includes(locationFilter));
+                if (expireFrom) filtered = filtered.filter(m => m.expireDate && new Date(m.expireDate) >= new Date(expireFrom));
+                if (expireTo) filtered = filtered.filter(m => m.expireDate && new Date(m.expireDate) <= new Date(expireTo));
+
+                if (filtered.length === 0) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; }
+                else {
+                    emptyEl.style.display = 'none';
+                    listEl.innerHTML = filtered.map(m => {
+                        const expireStatus = getExpireStatus(m);
+                        let expireTag = '';
+                        if (expireStatus === 'expired') expireTag = '<span class="meter-status-tag tag-expired">已过期</span>';
+                        else if (expireStatus === 'expiring') expireTag = '<span class="meter-status-tag tag-expiring">即将过期</span>';
+                        return `<div class="meter-item" data-asset="${m.assetNo}">
+                            <div class="meter-avatar">📟</div>
+                            <div class="meter-info">
+                                <div class="meter-name">${m.name||'未命名'} ${expireTag}</div>
+                                <div class="meter-asset">${m.assetNo} | ${m.model||''} | ${m.location||''}</div>
+                            </div>
+                            <span class="meter-status-tag ${m.status==='in-stock'?'tag-in-stock':'tag-borrowed'}">${m.status==='in-stock'?'在库':'借出'}</span>
+                        </div>`;
+                    }).join('');
+                    listEl.querySelectorAll('.meter-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            document.getElementById('manualQrInput').value = item.dataset.asset;
+                            switchPage('page-scan');
+                            processAssetQuery(item.dataset.asset);
+                        });
+                    });
+                }
+                updateStats();
+            }
+
+            document.getElementById('statusFilter').addEventListener('click', e => {
+                if (e.target.classList.contains('filter-tag')) {
+                    document.querySelectorAll('#statusFilter .filter-tag').forEach(t => t.classList.remove('active'));
+                    e.target.classList.add('active');
+                    renderDashboard();
+                }
+            });
+            ['filterModel','filterLocation','filterExpireFrom','filterExpireTo'].forEach(id => {
+                document.getElementById(id).addEventListener('input', renderDashboard);
+            });
+            document.getElementById('btnClearFilter').addEventListener('click', () => {
+                document.getElementById('filterModel').value = '';
+                document.getElementById('filterLocation').value = '';
+                document.getElementById('filterExpireFrom').value = '';
+                document.getElementById('filterExpireTo').value = '';
+                renderDashboard();
+            });
+
+            // 增强的字段提取，支持 HTML 标签清理和更多字段
             function extractFields(text) {
-                // 清理可能的 HTML 标签
                 const clean = text.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+(>|$)/g, '');
                 const fields = {};
                 const patterns = {
@@ -164,7 +462,6 @@
                 return fields;
             }
 
-            // 修改 processSingleAsset，完整填充所有字段
             async function processSingleAsset(assetNo, extraFields = {}) {
                 let meter = meters.find(m => m.assetNo === assetNo);
                 if (!meter) {
@@ -196,7 +493,6 @@
                     updateStats(); renderDashboard();
                     showToast('已添加仪表：' + assetNo, 'success');
                 } else {
-                    // 更新非空字段
                     let updated = false;
                     for (const key of ['name','model','serial','year','dept','subDept','user','location','expireDate','spec','price','calibrationDate','manageStatus','techStatus','borrowDept','borrower','calibrationMethod','manageCategory','securityCheck']) {
                         if (extraFields[key] && !meter[key]) {
@@ -209,17 +505,62 @@
                         showToast('仪表信息已更新', 'info');
                     }
                 }
-                // 显示卡片（与之前相同）
-                // ...
+                // 显示最后一个处理的结果卡片
+                const card = document.getElementById('scanResultCard');
+                card.style.display = 'block';
+                document.getElementById('scanResultTitle').textContent = `📟 ${meter.name || meter.assetNo}`;
+                document.getElementById('scanResultStatus').innerHTML = meter.status === 'in-stock' ? '<span class="tag-in-stock">在库</span>' : '<span class="tag-borrowed">借出中</span>';
+                document.getElementById('scanResultInfo').innerHTML = `
+                    <p><strong>资产号：</strong>${meter.assetNo}</p>
+                    <p><strong>名称：</strong>${meter.name||'-'}</p>
+                    <p><strong>型号：</strong>${meter.model||'-'}</p>
+                    <p><strong>位置：</strong>${meter.location||'-'}</p>
+                    <p><strong>有效期：</strong>${meter.expireDate||'-'}</p>`;
+                const formDiv = document.getElementById('scanActionForm');
+                if (meter.status === 'in-stock') {
+                    formDiv.innerHTML = `
+                        <div style="margin-top:12px;">
+                            <div class="form-group"><label>借用人姓名 *</label><input class="form-input borrow-name"></div>
+                            <div class="form-group"><label>借用人编号</label><input class="form-input borrow-id"></div>
+                            <div class="form-group"><label>借用地点 *</label><input class="form-input borrow-location"></div>
+                            <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
+                        </div>`;
+                    formDiv.querySelector('.btn-borrow-submit').onclick = async () => {
+                        if (meter.status !== 'in-stock') { showToast('该仪表已被借用', 'error'); return; }
+                        const name = formDiv.querySelector('.borrow-name').value.trim();
+                        const id = formDiv.querySelector('.borrow-id').value.trim();
+                        const loc = formDiv.querySelector('.borrow-location').value.trim();
+                        if (!name || !loc) { showToast('请填写姓名和地点', 'error'); return; }
+                        meter.status = 'borrowed'; meter.location = loc;
+                        records.unshift({
+                            id: generateId(), meterId: meter.assetNo, assetNo: meter.assetNo, meterName: meter.name,
+                            borrowerId: id, borrowerName: name, borrowLocation: loc, borrowTime: Date.now(),
+                            returnTime: null, status: 'borrowed'
+                        });
+                        await saveMeters(meters); await saveRecords(records);
+                        showToast('借用成功', 'success');
+                        processAssetQuery(meter.assetNo);
+                    };
+                } else {
+                    const activeRec = records.find(r => r.assetNo === meter.assetNo && r.status === 'borrowed');
+                    formDiv.innerHTML = `
+                        <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'}</p>
+                        <button class="btn btn-success btn-block btn-return-submit">🔄 归还</button>`;
+                    formDiv.querySelector('.btn-return-submit').onclick = async () => {
+                        meter.status = 'in-stock';
+                        if (activeRec) { activeRec.returnTime = Date.now(); activeRec.status = 'returned'; }
+                        await saveMeters(meters); await saveRecords(records);
+                        showToast('归还成功', 'success');
+                        processAssetQuery(meter.assetNo);
+                    };
+                }
             }
 
-            // 修改 processAssetQuery，解析出所有企业编号后，对每个调用 processSingleAsset 并传入提取的完整字段
             async function processAssetQuery(rawText) {
                 rawText = rawText.trim();
                 if (!rawText) { showToast('内容为空', 'error'); return; }
                 const fields = extractFields(rawText);
                 const assetNos = fields.assetNo ? [fields.assetNo] : [];
-                // 如果没有提取到企业编号，尝试将整个文本作为资产号
                 if (assetNos.length === 0 && !rawText.includes('\n') && !rawText.includes('<br')) {
                     assetNos.push(rawText);
                 }
@@ -228,7 +569,78 @@
                 }
             }
 
-            // 管理页编辑功能：确保 renderManageMeterList 中的点击事件正确绑定，使用 assetNo 而不是其他
+            document.getElementById('btnManualQuery').addEventListener('click', () => {
+                processAssetQuery(document.getElementById('manualQrInput').value);
+            });
+            document.getElementById('manualQrInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') processAssetQuery(e.target.value);
+            });
+
+            // 摄像头扫描
+            let html5QrCode = null;
+            function updateScanStatus(msg, isError=false) {
+                const el = document.getElementById('scanStatusMsg'); el.textContent = msg; el.style.color = isError ? '#d93025' : '#1a73e8';
+            }
+            document.getElementById('btnStartScan').addEventListener('click', () => {
+                document.getElementById('scanPlaceholder').style.display = 'none';
+                if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
+                html5QrCode.start({ facingMode: "environment" }, { fps: 5, qrbox: { width: 280, height: 280 } },
+                    (decodedText) => {
+                        updateScanStatus('✅ 扫描成功！');
+                        document.getElementById('manualQrInput').value = decodedText;
+                        processAssetQuery(decodedText);
+                        html5QrCode.stop().then(() => {
+                            document.getElementById('btnStartScan').style.display = 'inline-flex';
+                            document.getElementById('btnStopScan').style.display = 'none';
+                        }).catch(()=>{});
+                    },
+                    (errorMessage) => {
+                        if (errorMessage?.includes('No QR code found')) updateScanStatus('📷 正在寻找二维码...');
+                    }
+                ).then(() => {
+                    document.getElementById('btnStartScan').style.display = 'none';
+                    document.getElementById('btnStopScan').style.display = 'inline-flex';
+                    updateScanStatus('摄像头已启动');
+                }).catch(err => showToast('摄像头启动失败', 'error'));
+            });
+            document.getElementById('btnStopScan').addEventListener('click', () => {
+                if (html5QrCode) html5QrCode.stop().then(() => {
+                    document.getElementById('btnStartScan').style.display = 'inline-flex';
+                    document.getElementById('btnStopScan').style.display = 'none';
+                    document.getElementById('scanPlaceholder').style.display = 'block';
+                    updateScanStatus('');
+                });
+            });
+
+            // 记录页
+            function renderRecords(searchTerm='') {
+                const listEl = document.getElementById('recordList'), emptyEl = document.getElementById('emptyRecords');
+                let filtered = records;
+                if (searchTerm) { const t = searchTerm.toLowerCase(); filtered = filtered.filter(r => r.assetNo.toLowerCase().includes(t) || r.borrowerName.toLowerCase().includes(t)); }
+                if (filtered.length === 0) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; }
+                else {
+                    emptyEl.style.display = 'none';
+                    listEl.innerHTML = filtered.map(r => `
+                        <div class="card" style="font-size:0.9rem;">
+                            <div><strong>${r.assetNo}</strong> ${r.meterName||''}</div>
+                            <div>借用人: ${r.borrowerName} (${r.borrowerId||'-'})</div>
+                            <div>借用地点: ${r.borrowLocation}</div>
+                            <div>借用时间: ${formatTime(r.borrowTime)}</div>
+                            <div>归还时间: ${r.returnTime ? formatTime(r.returnTime) : '<span style="color:#e67e22">未归还</span>'}</div>
+                            <div class="record-actions"><button class="btn btn-danger btn-sm" onclick="deleteRecordWithAuth('${r.id}')">🗑 删除</button></div>
+                        </div>`).join('');
+                }
+            }
+            document.getElementById('searchRecord').addEventListener('input', e => renderRecords(e.target.value));
+            document.getElementById('btnExportCSV').addEventListener('click', () => {
+                let csv = '资产号,仪表名称,借用人,借用人编号,借用地点,借用时间,归还时间,状态\n';
+                records.forEach(r => { csv += `${r.assetNo},${r.meterName},${r.borrowerName},${r.borrowerId||''},${r.borrowLocation},${formatTime(r.borrowTime)},${r.returnTime?formatTime(r.returnTime):''},${r.status}\n`; });
+                const blob = new Blob(['\uFEFF'+csv], {type:'text/csv'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href=url; a.download='借用记录.csv'; a.click(); URL.revokeObjectURL(url);
+            });
+
+            // 管理页 - 仪表列表
             function renderManageMeterList() {
                 const listEl = document.getElementById('manageMeterList');
                 listEl.innerHTML = meters.map(m => `
@@ -266,6 +678,137 @@
                     });
                 });
             }
+
+            document.getElementById('meterForm').addEventListener('submit', async e => {
+                e.preventDefault();
+                const assetNo = document.getElementById('formAssetNo').value.trim();
+                if (!assetNo) { showToast('资产号必填', 'error'); return; }
+                const editAssetNo = document.getElementById('editMeterId').value;
+                if (!editAssetNo && meters.some(m => m.assetNo === assetNo)) {
+                    showToast('资产号已存在', 'error'); return;
+                }
+                const data = {
+                    assetNo,
+                    name: document.getElementById('formName').value.trim(),
+                    model: document.getElementById('formModel').value.trim(),
+                    serial: document.getElementById('formSerial').value.trim(),
+                    year: document.getElementById('formYear').value.trim(),
+                    dept: document.getElementById('formDept').value.trim(),
+                    subDept: document.getElementById('formSubDept').value.trim(),
+                    user: document.getElementById('formUser').value.trim(),
+                    location: document.getElementById('formLocation').value.trim(),
+                    expireDate: document.getElementById('formExpireDate').value,
+                    spec: document.getElementById('formSpec').value.trim(),
+                    price: document.getElementById('formPrice').value.trim(),
+                    calibrationDate: document.getElementById('formCalibrationDate').value,
+                    manageStatus: document.getElementById('formManageStatus').value.trim(),
+                    techStatus: document.getElementById('formTechStatus').value.trim(),
+                    borrowDept: document.getElementById('formBorrowDept').value.trim(),
+                    borrower: document.getElementById('formBorrower').value.trim(),
+                    calibrationMethod: document.getElementById('formCalibrationMethod').value.trim(),
+                    manageCategory: document.getElementById('formManageCategory').value.trim(),
+                    securityCheck: document.getElementById('formSecurityCheck').value.trim(),
+                    status: 'in-stock'
+                };
+                if (editAssetNo) {
+                    const idx = meters.findIndex(m => m.assetNo === editAssetNo);
+                    if (idx !== -1) Object.assign(meters[idx], data);
+                } else {
+                    meters.push(data);
+                }
+                await saveMeters(meters);
+                updateStats(); renderManageMeterList(); renderDashboard();
+                document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
+                showToast('保存成功', 'success');
+            });
+            document.getElementById('btnClearForm').addEventListener('click', () => {
+                document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
+            });
+            document.getElementById('btnAddSample').addEventListener('click', async () => {
+                meters.push({
+                    assetNo: 'DEMO-001', name: '数字万用表', model: 'FLUKE-17B', serial: 'SN001', year: '2023',
+                    dept: '实验室', subDept: '电学组', user: '张三', location: 'A柜-3', expireDate: '2025-12-31',
+                    status: 'in-stock'
+                });
+                await saveMeters(meters);
+                updateStats(); renderManageMeterList(); renderDashboard();
+            });
+            document.getElementById('btnClearAll').addEventListener('click', async () => {
+                if (confirm('确定清空所有数据？')) {
+                    meters = []; records = [];
+                    await saveMeters(meters); await saveRecords(records);
+                    updateStats(); renderManageMeterList(); renderDashboard(); renderRecords();
+                }
+            });
+
+            // Excel导入
+            document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('excelFileInput').click());
+            document.getElementById('excelFileInput').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = async (evt) => {
+                    const data = new Uint8Array(evt.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    if (rows.length < 2) { showToast('无数据', 'error'); return; }
+                    const headers = rows[0].map(h => String(h).trim());
+                    const newMeters = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || !row.length) continue;
+                        const obj = { status: 'in-stock' };
+                        headers.forEach((h, idx) => {
+                            const val = row[idx] ? String(row[idx]).trim() : '';
+                            if (h.includes('企业编号')) obj.assetNo = val;
+                            else if (h.includes('型号')) obj.model = val;
+                            else if (h.includes('名称')) obj.name = val;
+                            else if (h.includes('出厂编号') || h.includes('序号')) obj.serial = val;
+                            else if (h.includes('技术指标')) obj.spec = val;
+                            else if (h.includes('位置')) obj.location = val;
+                            else if (h.includes('总价')) obj.price = val;
+                            else if (h.includes('年代')) obj.year = val;
+                            else if (h.includes('检定日期')) obj.calibrationDate = val;
+                            else if (h.includes('有效期')) obj.expireDate = val;
+                            else if (h.includes('管理状态')) obj.manageStatus = val;
+                            else if (h.includes('技术状态')) obj.techStatus = val;
+                            else if (h.includes('使用部门')) obj.dept = val;
+                            else if (h.includes('二级部门')) obj.subDept = val;
+                            else if (h.includes('责任人')) obj.user = val;
+                            else if (h.includes('借用部门')) obj.borrowDept = val;
+                            else if (h.includes('借用人')) obj.borrower = val;
+                            else if (h.includes('检定方式')) obj.calibrationMethod = val;
+                            else if (h.includes('管理类别')) obj.manageCategory = val;
+                            else if (h.includes('安检')) obj.securityCheck = val;
+                        });
+                        if (obj.assetNo) newMeters.push(obj);
+                    }
+                    let added = 0, skipped = 0;
+                    for (const nm of newMeters) {
+                        if (meters.some(m => m.assetNo === nm.assetNo)) skipped++;
+                        else { meters.push(nm); added++; }
+                    }
+                    await saveMeters(meters);
+                    updateStats(); renderManageMeterList(); renderDashboard();
+                    showToast(`导入完成：新增${added}台，跳过${skipped}台重复`, 'success');
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
+            async function initApp() {
+                meters = await loadMeters();
+                records = await loadRecords();
+                if (meters.length === 0) {
+                    meters.push({ assetNo: 'METER-001', name: '精密压力表', model: 'A型', location: '实验室', status: 'in-stock' });
+                    await saveMeters(meters);
+                }
+                updateStats(); renderDashboard(); renderRecords(); renderManageMeterList();
+                const params = new URLSearchParams(window.location.search);
+                const asset = params.get('asset');
+                if (asset) { switchPage('page-scan'); document.getElementById('manualQrInput').value = asset; processAssetQuery(asset); }
+            }
+            window.addEventListener('DOMContentLoaded', initApp);
         })();
     </script>
 </body>
