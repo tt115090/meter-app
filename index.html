@@ -113,7 +113,6 @@
         </div>
     </div>
     <div class="main-content">
-        <!-- 仪表总览页 -->
         <div class="page active" id="page-dashboard">
             <div class="filter-tags" id="statusFilter">
                 <span class="filter-tag active" data-filter="all">全部</span>
@@ -130,7 +129,6 @@
             <div id="meterList"></div>
             <div class="empty-state" id="emptyMeters" style="display:none;"><div>📭</div><p>暂无匹配的仪表</p></div>
         </div>
-        <!-- 扫码操作页 -->
         <div class="page" id="page-scan">
             <div class="card">
                 <div class="card-title">📷 摄像头扫描</div>
@@ -148,7 +146,7 @@
                     <input type="text" class="form-input" id="manualQrInput" placeholder="输入资产号或粘贴完整文本" style="flex:1;">
                     <button class="btn btn-primary" id="btnManualQuery">查询</button>
                 </div>
-                <p style="font-size:0.75rem;color:#999;margin-top:6px;">支持粘贴支付宝扫出的完整信息</p>
+                <p style="font-size:0.75rem;color:#999;margin-top:6px;">支持粘贴多条信息，自动分开处理</p>
             </div>
             <div class="card" id="scanResultCard" style="display:none;">
                 <div class="card-header">
@@ -159,7 +157,6 @@
                 <div id="scanActionForm"></div>
             </div>
         </div>
-        <!-- 借用记录页 -->
         <div class="page" id="page-records">
             <div style="display:flex;gap:8px;margin-bottom:12px;">
                 <input type="text" class="form-input" id="searchRecord" placeholder="🔍 搜索资产号/借用人..." style="flex:1;">
@@ -168,7 +165,6 @@
             <div id="recordList"></div>
             <div class="empty-state" id="emptyRecords" style="display:none;"><div>📝</div><p>暂无借用记录</p></div>
         </div>
-        <!-- 管理页 -->
         <div class="page" id="page-manage">
             <div class="card">
                 <div class="card-title">➕ 添加/编辑仪表</div>
@@ -235,7 +231,11 @@
                 const options = { method, headers };
                 if (body) options.body = JSON.stringify(body);
                 const res = await fetch(url, options);
-                if (!res.ok) throw new Error('网络错误: ' + res.status + ' ' + await res.text());
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(`网络错误 ${res.status}: ${errText}`);
+                }
+                if (method === 'DELETE') return null;
                 return res.json();
             }
 
@@ -243,17 +243,39 @@
                 const data = await supabaseFetch('meters?select=data');
                 return data.map(row => row.data);
             }
+
             async function saveMeters(meters) {
+                // 清空所有数据
                 await supabaseFetch('meters?data=not.is.null', 'DELETE');
-                for (const m of meters) await supabaseFetch('meters', 'POST', { data: m });
+                if (meters.length === 0) return;
+                const batch = meters.map(m => ({ data: m }));
+                try {
+                    // 尝试批量插入（数组形式）
+                    await supabaseFetch('meters', 'POST', batch);
+                } catch (e) {
+                    console.warn('批量插入失败，改用逐条插入:', e);
+                    for (const item of batch) {
+                        try { await supabaseFetch('meters', 'POST', item); } catch (err) {}
+                    }
+                }
             }
+
             async function loadRecords() {
                 const data = await supabaseFetch('records?select=data&order=data->>borrowTime.desc');
                 return data.map(row => row.data);
             }
+
             async function saveRecords(records) {
                 await supabaseFetch('records?data=not.is.null', 'DELETE');
-                for (const r of records) await supabaseFetch('records', 'POST', { data: r });
+                if (records.length === 0) return;
+                const batch = records.map(r => ({ data: r }));
+                try {
+                    await supabaseFetch('records', 'POST', batch);
+                } catch (e) {
+                    for (const item of batch) {
+                        try { await supabaseFetch('records', 'POST', item); } catch (err) {}
+                    }
+                }
             }
 
             const ADMIN_PASSWORD = 'admin123';
@@ -276,7 +298,7 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
-            // 密码弹窗
+            // 密码弹窗逻辑
             document.getElementById('pwdConfirm').addEventListener('click', async () => {
                 const pwd = document.getElementById('pwdInput').value;
                 if (pwd !== ADMIN_PASSWORD) { document.getElementById('pwdError').style.display = 'block'; return; }
@@ -289,8 +311,8 @@
                 document.getElementById('pwdModal').classList.remove('active');
                 pendingDeleteId = null; pendingPageId = null;
             });
-            function showPwdModalForDelete(id) { pendingDeleteId = id; pendingPageId = null; document.getElementById('pwdModal').classList.add('active'); }
-            function showPwdModalForPage(id) { pendingPageId = id; pendingDeleteId = null; document.getElementById('pwdModal').classList.add('active'); }
+            function showPwdModalForDelete(id) { pendingDeleteId = id; document.getElementById('pwdModal').classList.add('active'); }
+            function showPwdModalForPage(id) { pendingPageId = id; document.getElementById('pwdModal').classList.add('active'); }
             async function executeDelete(recordId) {
                 const idx = records.findIndex(r => r.id === recordId);
                 if (idx === -1) return;
@@ -320,6 +342,7 @@
                 if (pageId === 'page-records') renderRecords();
                 if (pageId === 'page-manage') renderManageMeterList();
             }
+
             document.getElementById('desktopTabs').addEventListener('click', e => {
                 const tab = e.target.closest('.desktop-tab');
                 if (tab) switchPage(tab.dataset.page);
@@ -369,8 +392,7 @@
                         let expireTag = '';
                         if (expireStatus === 'expired') expireTag = '<span class="meter-status-tag tag-expired">已过期</span>';
                         else if (expireStatus === 'expiring') expireTag = '<span class="meter-status-tag tag-expiring">即将过期</span>';
-                        return `
-                        <div class="meter-item" data-asset="${m.assetNo}">
+                        return `<div class="meter-item" data-asset="${m.assetNo}">
                             <div class="meter-avatar">📟</div>
                             <div class="meter-info">
                                 <div class="meter-name">${m.name||'未命名'} ${expireTag}</div>
@@ -389,6 +411,7 @@
                 }
                 updateStats();
             }
+
             document.getElementById('statusFilter').addEventListener('click', e => {
                 if (e.target.classList.contains('filter-tag')) {
                     document.querySelectorAll('#statusFilter .filter-tag').forEach(t => t.classList.remove('active'));
@@ -407,99 +430,95 @@
                 renderDashboard();
             });
 
-            function extractFields(text) {
-                const fields = {};
-                const idMatch = text.match(/企业编号[：:]\s*(\S+)/);
-                if (idMatch) fields.assetNo = idMatch[1].trim();
-                const nameMatch = text.match(/名称[：:]\s*(\S+)/);
-                if (nameMatch) fields.name = nameMatch[1].trim();
-                return fields;
+            // 解析多条企业编号
+            function extractAllAssetNos(text) {
+                const matches = text.match(/企业编号[：:]\s*(\S+)/g);
+                if (!matches) return null;
+                return matches.map(m => m.replace(/企业编号[：:]\s*/, '').trim()).filter(Boolean);
             }
 
             async function processAssetQuery(rawText) {
-                try {
-                    rawText = rawText.trim();
-                    if (!rawText) { showToast('内容为空', 'error'); return; }
-                    const fields = extractFields(rawText);
-                    let assetNo = fields.assetNo || rawText;
-                    if (!fields.assetNo) {
-                        try { const j = JSON.parse(rawText); if (j.assetNo) assetNo = j.assetNo; } catch(e) {}
-                    }
-                    let meter = meters.find(m => m.assetNo === assetNo);
-                    if (!meter) {
-                        meter = {
-                            assetNo: assetNo,
-                            name: fields.name || '',
-                            model: '', serial: '', year: '', dept: '', subDept: '',
-                            user: '', location: '', expireDate: '', spec: '', price: '',
-                            calibrationDate: '', manageStatus: '', techStatus: '',
-                            borrowDept: '', borrower: '', calibrationMethod: '', manageCategory: '', securityCheck: '',
-                            status: 'in-stock'
-                        };
-                        meters.push(meter);
-                        await saveMeters(meters);
-                        updateStats(); renderDashboard();
-                        showToast('自动添加了新仪表：' + assetNo, 'success');
-                    } else {
-                        if (fields.name && !meter.name) meter.name = fields.name;
-                        await saveMeters(meters);
-                    }
-
-                    const card = document.getElementById('scanResultCard');
-                    card.style.display = 'block';
-                    document.getElementById('scanResultTitle').textContent = `📟 ${meter.name || meter.assetNo}`;
-                    document.getElementById('scanResultStatus').innerHTML = meter.status === 'in-stock' ? '<span class="tag-in-stock">在库</span>' : '<span class="tag-borrowed">借出中</span>';
-                    document.getElementById('scanResultInfo').innerHTML = `
-                        <p><strong>资产号：</strong>${meter.assetNo}</p>
-                        <p><strong>名称：</strong>${meter.name||'-'}</p>
-                        <p><strong>型号：</strong>${meter.model||'-'}</p>
-                        <p><strong>位置：</strong>${meter.location||'-'}</p>
-                        <p><strong>有效期：</strong>${meter.expireDate||'-'}</p>`;
-                    const formDiv = document.getElementById('scanActionForm');
-                    if (meter.status === 'in-stock') {
-                        formDiv.innerHTML = `
-                            <div style="margin-top:12px; border-top:1px solid #eee; padding-top:12px;">
-                                <div class="form-group"><label class="form-label">借用人姓名 *</label><input type="text" class="form-input borrow-name"></div>
-                                <div class="form-group"><label class="form-label">借用人编号</label><input type="text" class="form-input borrow-id"></div>
-                                <div class="form-group"><label class="form-label">借用地点 *</label><input type="text" class="form-input borrow-location"></div>
-                                <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
-                            </div>`;
-                        formDiv.querySelector('.btn-borrow-submit').addEventListener('click', async () => {
-                            if (meter.status !== 'in-stock') { showToast('该仪表已被他人借用', 'error'); return; }
-                            const name = formDiv.querySelector('.borrow-name').value.trim();
-                            const id = formDiv.querySelector('.borrow-id').value.trim();
-                            const loc = formDiv.querySelector('.borrow-location').value.trim();
-                            if (!name || !loc) { showToast('请填写姓名和地点', 'error'); return; }
-                            meter.status = 'borrowed'; meter.location = loc;
-                            records.unshift({
-                                id: generateId(), meterId: meter.assetNo, assetNo: meter.assetNo, meterName: meter.name,
-                                borrowerId: id, borrowerName: name, borrowLocation: loc, borrowTime: Date.now(),
-                                returnTime: null, status: 'borrowed'
-                            });
-                            await saveMeters(meters); await saveRecords(records);
-                            showToast('借用成功', 'success');
-                            processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
-                        });
-                    } else {
-                        const activeRec = records.find(r => r.assetNo === meter.assetNo && r.status === 'borrowed');
-                        formDiv.innerHTML = `
-                            <div style="margin-top:12px;">
-                                <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'}</p>
-                                <button class="btn btn-success btn-block btn-return-submit">🔄 归还仪表</button>
-                            </div>`;
-                        formDiv.querySelector('.btn-return-submit').addEventListener('click', async () => {
-                            meter.status = 'in-stock';
-                            if (activeRec) { activeRec.returnTime = Date.now(); activeRec.status = 'returned'; }
-                            await saveMeters(meters); await saveRecords(records);
-                            showToast('归还成功', 'success');
-                            processAssetQuery(meter.assetNo); updateStats(); renderDashboard();
-                        });
-                    }
-                } catch (err) { showToast('处理出错：' + err.message, 'error'); }
+                rawText = rawText.trim();
+                if (!rawText) { showToast('内容为空', 'error'); return; }
+                const assetNos = extractAllAssetNos(rawText) || [rawText];
+                for (const assetNo of assetNos) {
+                    await processSingleAsset(assetNo);
+                }
             }
 
-            document.getElementById('btnManualQuery').addEventListener('click', () => processAssetQuery(document.getElementById('manualQrInput').value));
-            document.getElementById('manualQrInput').addEventListener('keypress', e => { if (e.key === 'Enter') processAssetQuery(e.target.value); });
+            async function processSingleAsset(assetNo) {
+                let meter = meters.find(m => m.assetNo === assetNo);
+                if (!meter) {
+                    meter = {
+                        assetNo: assetNo,
+                        name: '', model: '', serial: '', year: '', dept: '', subDept: '',
+                        user: '', location: '', expireDate: '', spec: '', price: '',
+                        calibrationDate: '', manageStatus: '', techStatus: '',
+                        borrowDept: '', borrower: '', calibrationMethod: '', manageCategory: '', securityCheck: '',
+                        status: 'in-stock'
+                    };
+                    meters.push(meter);
+                    await saveMeters(meters);
+                    updateStats(); renderDashboard();
+                    showToast('已添加仪表：' + assetNo, 'success');
+                }
+                // 显示最后一个处理的结果卡片
+                const card = document.getElementById('scanResultCard');
+                card.style.display = 'block';
+                document.getElementById('scanResultTitle').textContent = `📟 ${meter.name || meter.assetNo}`;
+                document.getElementById('scanResultStatus').innerHTML = meter.status === 'in-stock' ? '<span class="tag-in-stock">在库</span>' : '<span class="tag-borrowed">借出中</span>';
+                document.getElementById('scanResultInfo').innerHTML = `
+                    <p><strong>资产号：</strong>${meter.assetNo}</p>
+                    <p><strong>名称：</strong>${meter.name||'-'}</p>
+                    <p><strong>型号：</strong>${meter.model||'-'}</p>
+                    <p><strong>位置：</strong>${meter.location||'-'}</p>
+                    <p><strong>有效期：</strong>${meter.expireDate||'-'}</p>`;
+                const formDiv = document.getElementById('scanActionForm');
+                if (meter.status === 'in-stock') {
+                    formDiv.innerHTML = `
+                        <div style="margin-top:12px;">
+                            <div class="form-group"><label>借用人姓名 *</label><input class="form-input borrow-name"></div>
+                            <div class="form-group"><label>借用人编号</label><input class="form-input borrow-id"></div>
+                            <div class="form-group"><label>借用地点 *</label><input class="form-input borrow-location"></div>
+                            <button class="btn btn-primary btn-block btn-borrow-submit">✅ 确认借用</button>
+                        </div>`;
+                    formDiv.querySelector('.btn-borrow-submit').onclick = async () => {
+                        if (meter.status !== 'in-stock') { showToast('该仪表已被借用', 'error'); return; }
+                        const name = formDiv.querySelector('.borrow-name').value.trim();
+                        const id = formDiv.querySelector('.borrow-id').value.trim();
+                        const loc = formDiv.querySelector('.borrow-location').value.trim();
+                        if (!name || !loc) { showToast('请填写姓名和地点', 'error'); return; }
+                        meter.status = 'borrowed'; meter.location = loc;
+                        records.unshift({
+                            id: generateId(), meterId: meter.assetNo, assetNo: meter.assetNo, meterName: meter.name,
+                            borrowerId: id, borrowerName: name, borrowLocation: loc, borrowTime: Date.now(),
+                            returnTime: null, status: 'borrowed'
+                        });
+                        await saveMeters(meters); await saveRecords(records);
+                        showToast('借用成功', 'success');
+                        processAssetQuery(meter.assetNo);
+                    };
+                } else {
+                    const activeRec = records.find(r => r.assetNo === meter.assetNo && r.status === 'borrowed');
+                    formDiv.innerHTML = `
+                        <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'}</p>
+                        <button class="btn btn-success btn-block btn-return-submit">🔄 归还</button>`;
+                    formDiv.querySelector('.btn-return-submit').onclick = async () => {
+                        meter.status = 'in-stock';
+                        if (activeRec) { activeRec.returnTime = Date.now(); activeRec.status = 'returned'; }
+                        await saveMeters(meters); await saveRecords(records);
+                        showToast('归还成功', 'success');
+                        processAssetQuery(meter.assetNo);
+                    };
+                }
+            }
+
+            document.getElementById('btnManualQuery').addEventListener('click', () => {
+                processAssetQuery(document.getElementById('manualQrInput').value);
+            });
+            document.getElementById('manualQrInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') processAssetQuery(e.target.value);
+            });
 
             // 摄像头扫描
             let html5QrCode = null;
@@ -565,7 +584,7 @@
                 const a = document.createElement('a'); a.href=url; a.download='借用记录.csv'; a.click(); URL.revokeObjectURL(url);
             });
 
-            // 管理页
+            // 管理页 - 仪表列表（修复编辑功能）
             function renderManageMeterList() {
                 const listEl = document.getElementById('manageMeterList');
                 listEl.innerHTML = meters.map(m => `
@@ -576,23 +595,40 @@
                     </div>`).join('');
                 listEl.querySelectorAll('.meter-item').forEach(item => {
                     item.addEventListener('click', () => {
-                        const meter = meters.find(m => m.assetNo === item.dataset.asset);
-                        if (meter) {
-                            document.getElementById('editMeterId').value = meter.assetNo;
-                            ['formAssetNo','formName','formModel','formSerial','formYear','formDept','formSubDept','formUser','formLocation','formExpireDate','formSpec','formPrice','formCalibrationDate','formManageStatus','formTechStatus','formBorrowDept','formBorrower','formCalibrationMethod','formManageCategory','formSecurityCheck'].forEach(id => {
-                                const el = document.getElementById(id);
-                                if (el) el.value = meter[id.replace('form','').charAt(0).toLowerCase() + id.slice(4)] || '';
-                            });
-                        }
+                        const assetNo = item.dataset.asset;
+                        const meter = meters.find(m => m.assetNo === assetNo);
+                        if (!meter) return;
+                        document.getElementById('editMeterId').value = meter.assetNo;
+                        document.getElementById('formAssetNo').value = meter.assetNo || '';
+                        document.getElementById('formName').value = meter.name || '';
+                        document.getElementById('formModel').value = meter.model || '';
+                        document.getElementById('formSerial').value = meter.serial || '';
+                        document.getElementById('formYear').value = meter.year || '';
+                        document.getElementById('formDept').value = meter.dept || '';
+                        document.getElementById('formSubDept').value = meter.subDept || '';
+                        document.getElementById('formUser').value = meter.user || '';
+                        document.getElementById('formLocation').value = meter.location || '';
+                        document.getElementById('formExpireDate').value = meter.expireDate || '';
+                        document.getElementById('formSpec').value = meter.spec || '';
+                        document.getElementById('formPrice').value = meter.price || '';
+                        document.getElementById('formCalibrationDate').value = meter.calibrationDate || '';
+                        document.getElementById('formManageStatus').value = meter.manageStatus || '';
+                        document.getElementById('formTechStatus').value = meter.techStatus || '';
+                        document.getElementById('formBorrowDept').value = meter.borrowDept || '';
+                        document.getElementById('formBorrower').value = meter.borrower || '';
+                        document.getElementById('formCalibrationMethod').value = meter.calibrationMethod || '';
+                        document.getElementById('formManageCategory').value = meter.manageCategory || '';
+                        document.getElementById('formSecurityCheck').value = meter.securityCheck || '';
                     });
                 });
             }
+
             document.getElementById('meterForm').addEventListener('submit', async e => {
                 e.preventDefault();
                 const assetNo = document.getElementById('formAssetNo').value.trim();
                 if (!assetNo) { showToast('资产号必填', 'error'); return; }
                 const editAssetNo = document.getElementById('editMeterId').value;
-                if (!editAssetNo && meters.find(m => m.assetNo === assetNo)) {
+                if (!editAssetNo && meters.some(m => m.assetNo === assetNo)) {
                     showToast('资产号已存在', 'error'); return;
                 }
                 const data = {
@@ -621,7 +657,9 @@
                 if (editAssetNo) {
                     const idx = meters.findIndex(m => m.assetNo === editAssetNo);
                     if (idx !== -1) Object.assign(meters[idx], data);
-                } else meters.push(data);
+                } else {
+                    meters.push(data);
+                }
                 await saveMeters(meters);
                 updateStats(); renderManageMeterList(); renderDashboard();
                 document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
@@ -636,8 +674,8 @@
                     dept: '实验室', subDept: '电学组', user: '张三', location: 'A柜-3', expireDate: '2025-12-31',
                     status: 'in-stock'
                 });
-                await saveMeters(meters); updateStats(); renderManageMeterList(); renderDashboard();
-                showToast('已添加示例', 'info');
+                await saveMeters(meters);
+                updateStats(); renderManageMeterList(); renderDashboard();
             });
             document.getElementById('btnClearAll').addEventListener('click', async () => {
                 if (confirm('确定清空所有数据？')) {
@@ -647,7 +685,7 @@
                 }
             });
 
-            // Excel导入
+            // Excel导入（已优化可靠性）
             document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('excelFileInput').click());
             document.getElementById('excelFileInput').addEventListener('change', async (e) => {
                 const file = e.target.files[0];
@@ -692,7 +730,7 @@
                     }
                     let added = 0, skipped = 0;
                     for (const nm of newMeters) {
-                        if (meters.find(m => m.assetNo === nm.assetNo)) skipped++;
+                        if (meters.some(m => m.assetNo === nm.assetNo)) skipped++;
                         else { meters.push(nm); added++; }
                     }
                     await saveMeters(meters);
