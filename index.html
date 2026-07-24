@@ -257,24 +257,39 @@
                 const data = await supabaseFetch('meters?select=data');
                 return data.map(row => row.data);
             }
+
+            // 安全的 saveMeters（Upsert 模式）
             async function saveMeters(meters) {
-                await supabaseFetch('meters?data=not.is.null', 'DELETE');
-                if (meters.length === 0) return;
-                const batch = meters.map(m => ({ data: m }));
-                try { await supabaseFetch('meters', 'POST', batch); } catch (e) {
-                    for (const item of batch) { try { await supabaseFetch('meters', 'POST', item); } catch (err) {} }
+                for (const m of meters) {
+                    const assetNo = m.assetNo;
+                    if (!assetNo) continue;
+                    const existing = await supabaseFetch(`meters?select=id&asset_no=eq.${encodeURIComponent(assetNo)}`, 'GET');
+                    if (existing && existing.length > 0) {
+                        const id = existing[0].id;
+                        await supabaseFetch(`meters?id=eq.${id}`, 'PATCH', { data: m, asset_no: assetNo });
+                    } else {
+                        await supabaseFetch('meters', 'POST', { data: m, asset_no: assetNo });
+                    }
                 }
             }
+
             async function loadRecords() {
                 const data = await supabaseFetch('records?select=data&order=data->>borrowTime.desc');
                 return data.map(row => row.data);
             }
+
+            // 安全的 saveRecords（Upsert 模式）
             async function saveRecords(records) {
-                await supabaseFetch('records?data=not.is.null', 'DELETE');
-                if (records.length === 0) return;
-                const batch = records.map(r => ({ data: r }));
-                try { await supabaseFetch('records', 'POST', batch); } catch (e) {
-                    for (const item of batch) { try { await supabaseFetch('records', 'POST', item); } catch (err) {} }
+                for (const r of records) {
+                    const recordId = r.id;
+                    if (!recordId) continue;
+                    const existing = await supabaseFetch(`records?select=id&record_id=eq.${encodeURIComponent(recordId)}`, 'GET');
+                    if (existing && existing.length > 0) {
+                        const id = existing[0].id;
+                        await supabaseFetch(`records?id=eq.${id}`, 'PATCH', { data: r, record_id: recordId });
+                    } else {
+                        await supabaseFetch('records', 'POST', { data: r, record_id: recordId });
+                    }
                 }
             }
 
@@ -300,7 +315,7 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
-            // 密码弹窗
+            // 密码弹窗逻辑
             document.getElementById('pwdConfirm').addEventListener('click', async () => {
                 const pwd = document.getElementById('pwdInput').value;
                 if (pwd !== ADMIN_PASSWORD) { document.getElementById('pwdError').style.display = 'block'; return; }
@@ -497,7 +512,8 @@
                         calibrationMethod: extraFields.calibrationMethod || '', manageCategory: extraFields.manageCategory || '',
                         securityCheck: extraFields.securityCheck || '', status: 'in-stock'
                     };
-                    meters.push(meter); await saveMeters(meters);
+                    meters.push(meter);
+                    await saveMeters(meters);
                     updateStats(); renderDashboard();
                     showToast('已添加仪表：' + assetNo, 'success');
                 } else {
@@ -755,7 +771,6 @@
                 return serial;
             }
 
-            // 导入 Excel，支持 2000 条，分批保存
             document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('excelFileInput').click());
             document.getElementById('excelFileInput').addEventListener('change', async (e) => {
                 const file = e.target.files[0]; if (!file) return;
@@ -797,29 +812,13 @@
                         if (obj.assetNo) newMeters.push(obj);
                     }
 
-                    // 去重并添加到 meters 数组
                     let added = 0, skipped = 0;
                     for (const nm of newMeters) {
                         if (meters.some(m => m.assetNo === nm.assetNo)) skipped++;
                         else { meters.push(nm); added++; }
                     }
 
-                    // 分批保存，每批 200 条，防止超过 API 限制
-                    const batchSize = 200;
-                    const totalMeters = meters;
-                    await supabaseFetch('meters?data=not.is.null', 'DELETE'); // 先清空
-                    for (let i = 0; i < totalMeters.length; i += batchSize) {
-                        const batch = totalMeters.slice(i, i + batchSize).map(m => ({ data: m }));
-                        try {
-                            await supabaseFetch('meters', 'POST', batch);
-                        } catch (e) {
-                            // 降级为逐条保存
-                            for (const item of batch) {
-                                try { await supabaseFetch('meters', 'POST', item); } catch (err) {}
-                            }
-                        }
-                    }
-
+                    await saveMeters(meters);
                     updateStats(); renderManageMeterList(); renderDashboard();
                     showToast(`导入完成：新增${added}台，跳过${skipped}台重复`, 'success');
                 };
