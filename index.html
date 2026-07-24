@@ -81,7 +81,7 @@
         .pwd-box h3 { margin-bottom:16px; text-align:center; }
         .record-actions { margin-top:8px; display:flex; gap:8px; }
         .filter-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; align-items:center; }
-        .filter-row .form-input { flex:1; min-width:120px; }
+        .filter-row .form-input, .filter-row .form-select { flex:1; min-width:120px; }
     </style>
 </head>
 <body>
@@ -118,12 +118,18 @@
                 <span class="filter-tag active" data-filter="all">全部</span>
                 <span class="filter-tag" data-filter="in-stock">🟢 在库</span>
                 <span class="filter-tag" data-filter="borrowed">🟠 借出</span>
+                <span class="filter-tag" data-filter="expiring">⏳ 临近有效期</span>
             </div>
             <div class="filter-row">
-                <input type="text" class="form-input" id="filterModel" placeholder="型号">
+                <input type="text" class="form-input" id="filterName" placeholder="名称">
                 <input type="text" class="form-input" id="filterLocation" placeholder="位置">
-                <input type="date" class="form-input" id="filterExpireFrom" placeholder="有效期从">
-                <input type="date" class="form-input" id="filterExpireTo" placeholder="有效期至">
+                <input type="text" class="form-input" id="filterUser" placeholder="责任人">
+                <select class="form-select" id="filterExpireDays">
+                    <option value="">有效期（全部）</option>
+                    <option value="15">15 天内</option>
+                    <option value="30">30 天内</option>
+                    <option value="60">60 天内</option>
+                </select>
                 <button class="btn btn-outline btn-sm" id="btnClearFilter">重置</button>
             </div>
             <div id="meterList"></div>
@@ -198,6 +204,9 @@
             </div>
             <div class="card">
                 <div class="card-title">📋 仪表列表（点击编辑）</div>
+                <div style="margin-bottom:10px;">
+                    <input type="text" class="form-input" id="manageSearch" placeholder="🔍 搜索资产号/名称/型号...">
+                </div>
                 <div id="manageMeterList"></div>
             </div>
             <div class="card">
@@ -217,7 +226,6 @@
     </div>
     <script>
         (function() {
-            // Supabase 配置
             const SUPABASE_URL = 'https://yxzsestiwiznhsecrnec.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4enNlc3Rpd2l6bmhzZWNybmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MTExNTYsImV4cCI6MjEwMDM4NzE1Nn0.VYwxJqNhxYHMpYoJmef1OR9z1SUL-aUvGK9uEgXtnTI';
 
@@ -232,10 +240,7 @@
                 const options = { method, headers };
                 if (body) options.body = JSON.stringify(body);
                 const res = await fetch(url, options);
-                if (!res.ok) {
-                    const errText = await res.text();
-                    throw new Error(`网络错误 ${res.status}: ${errText}`);
-                }
+                if (!res.ok) throw new Error('网络错误: ' + res.status + ' ' + await res.text());
                 if (method === 'DELETE') return null;
                 return res.json();
             }
@@ -249,13 +254,8 @@
                 await supabaseFetch('meters?data=not.is.null', 'DELETE');
                 if (meters.length === 0) return;
                 const batch = meters.map(m => ({ data: m }));
-                try {
-                    await supabaseFetch('meters', 'POST', batch);
-                } catch (e) {
-                    console.warn('批量插入失败，改用逐条插入:', e);
-                    for (const item of batch) {
-                        try { await supabaseFetch('meters', 'POST', item); } catch (err) {}
-                    }
+                try { await supabaseFetch('meters', 'POST', batch); } catch (e) {
+                    for (const item of batch) { try { await supabaseFetch('meters', 'POST', item); } catch (err) {} }
                 }
             }
 
@@ -268,12 +268,8 @@
                 await supabaseFetch('records?data=not.is.null', 'DELETE');
                 if (records.length === 0) return;
                 const batch = records.map(r => ({ data: r }));
-                try {
-                    await supabaseFetch('records', 'POST', batch);
-                } catch (e) {
-                    for (const item of batch) {
-                        try { await supabaseFetch('records', 'POST', item); } catch (err) {}
-                    }
+                try { await supabaseFetch('records', 'POST', batch); } catch (e) {
+                    for (const item of batch) { try { await supabaseFetch('records', 'POST', item); } catch (err) {} }
                 }
             }
 
@@ -370,18 +366,31 @@
             function renderDashboard() {
                 const listEl = document.getElementById('meterList'), emptyEl = document.getElementById('emptyMeters');
                 const statusFilter = document.querySelector('#statusFilter .filter-tag.active')?.dataset.filter || 'all';
-                const modelFilter = document.getElementById('filterModel').value.trim().toLowerCase();
+                const nameFilter = document.getElementById('filterName').value.trim().toLowerCase();
                 const locationFilter = document.getElementById('filterLocation').value.trim().toLowerCase();
-                const expireFrom = document.getElementById('filterExpireFrom').value;
-                const expireTo = document.getElementById('filterExpireTo').value;
+                const userFilter = document.getElementById('filterUser').value.trim().toLowerCase();
+                const expireDays = document.getElementById('filterExpireDays').value;
 
                 let filtered = meters;
                 if (statusFilter === 'in-stock') filtered = filtered.filter(m => m.status === 'in-stock');
                 else if (statusFilter === 'borrowed') filtered = filtered.filter(m => m.status === 'borrowed');
-                if (modelFilter) filtered = filtered.filter(m => m.model && m.model.toLowerCase().includes(modelFilter));
+                else if (statusFilter === 'expiring') filtered = filtered.filter(m => {
+                    const status = getExpireStatus(m);
+                    return status === 'expiring' || status === 'expired';
+                });
+                if (nameFilter) filtered = filtered.filter(m => m.name && m.name.toLowerCase().includes(nameFilter));
                 if (locationFilter) filtered = filtered.filter(m => m.location && m.location.toLowerCase().includes(locationFilter));
-                if (expireFrom) filtered = filtered.filter(m => m.expireDate && new Date(m.expireDate) >= new Date(expireFrom));
-                if (expireTo) filtered = filtered.filter(m => m.expireDate && new Date(m.expireDate) <= new Date(expireTo));
+                if (userFilter) filtered = filtered.filter(m => m.user && m.user.toLowerCase().includes(userFilter));
+                if (expireDays) {
+                    const days = parseInt(expireDays);
+                    filtered = filtered.filter(m => {
+                        if (!m.expireDate) return false;
+                        const now = new Date();
+                        const expire = new Date(m.expireDate);
+                        const diff = Math.ceil((expire - now) / (1000 * 60 * 60 * 24));
+                        return diff >= 0 && diff <= days;
+                    });
+                }
 
                 if (filtered.length === 0) { listEl.innerHTML = ''; emptyEl.style.display = 'block'; }
                 else {
@@ -418,18 +427,19 @@
                     renderDashboard();
                 }
             });
-            ['filterModel','filterLocation','filterExpireFrom','filterExpireTo'].forEach(id => {
+            ['filterName','filterLocation','filterUser'].forEach(id => {
                 document.getElementById(id).addEventListener('input', renderDashboard);
             });
+            document.getElementById('filterExpireDays').addEventListener('change', renderDashboard);
             document.getElementById('btnClearFilter').addEventListener('click', () => {
-                document.getElementById('filterModel').value = '';
+                document.getElementById('filterName').value = '';
                 document.getElementById('filterLocation').value = '';
-                document.getElementById('filterExpireFrom').value = '';
-                document.getElementById('filterExpireTo').value = '';
+                document.getElementById('filterUser').value = '';
+                document.getElementById('filterExpireDays').value = '';
                 renderDashboard();
             });
 
-            // 增强的字段提取，支持 HTML 标签清理和更多字段
+            // 增强的字段提取
             function extractFields(text) {
                 const clean = text.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+(>|$)/g, '');
                 const fields = {};
@@ -500,12 +510,8 @@
                             updated = true;
                         }
                     }
-                    if (updated) {
-                        await saveMeters(meters);
-                        showToast('仪表信息已更新', 'info');
-                    }
+                    if (updated) { await saveMeters(meters); showToast('仪表信息已更新', 'info'); }
                 }
-                // 显示最后一个处理的结果卡片
                 const card = document.getElementById('scanResultCard');
                 card.style.display = 'block';
                 document.getElementById('scanResultTitle').textContent = `📟 ${meter.name || meter.assetNo}`;
@@ -569,12 +575,8 @@
                 }
             }
 
-            document.getElementById('btnManualQuery').addEventListener('click', () => {
-                processAssetQuery(document.getElementById('manualQrInput').value);
-            });
-            document.getElementById('manualQrInput').addEventListener('keypress', e => {
-                if (e.key === 'Enter') processAssetQuery(e.target.value);
-            });
+            document.getElementById('btnManualQuery').addEventListener('click', () => processAssetQuery(document.getElementById('manualQrInput').value));
+            document.getElementById('manualQrInput').addEventListener('keypress', e => { if (e.key === 'Enter') processAssetQuery(e.target.value); });
 
             // 摄像头扫描
             let html5QrCode = null;
@@ -594,9 +596,7 @@
                             document.getElementById('btnStopScan').style.display = 'none';
                         }).catch(()=>{});
                     },
-                    (errorMessage) => {
-                        if (errorMessage?.includes('No QR code found')) updateScanStatus('📷 正在寻找二维码...');
-                    }
+                    (errorMessage) => { if (errorMessage?.includes('No QR code found')) updateScanStatus('📷 正在寻找二维码...'); }
                 ).then(() => {
                     document.getElementById('btnStartScan').style.display = 'none';
                     document.getElementById('btnStopScan').style.display = 'inline-flex';
@@ -608,11 +608,9 @@
                     document.getElementById('btnStartScan').style.display = 'inline-flex';
                     document.getElementById('btnStopScan').style.display = 'none';
                     document.getElementById('scanPlaceholder').style.display = 'block';
-                    updateScanStatus('');
                 });
             });
 
-            // 记录页
             function renderRecords(searchTerm='') {
                 const listEl = document.getElementById('recordList'), emptyEl = document.getElementById('emptyRecords');
                 let filtered = records;
@@ -636,14 +634,21 @@
                 let csv = '资产号,仪表名称,借用人,借用人编号,借用地点,借用时间,归还时间,状态\n';
                 records.forEach(r => { csv += `${r.assetNo},${r.meterName},${r.borrowerName},${r.borrowerId||''},${r.borrowLocation},${formatTime(r.borrowTime)},${r.returnTime?formatTime(r.returnTime):''},${r.status}\n`; });
                 const blob = new Blob(['\uFEFF'+csv], {type:'text/csv'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href=url; a.download='借用记录.csv'; a.click(); URL.revokeObjectURL(url);
+                const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='借用记录.csv'; a.click(); URL.revokeObjectURL(url);
             });
 
-            // 管理页 - 仪表列表
+            // 管理页搜索与列表
             function renderManageMeterList() {
+                const searchTerm = document.getElementById('manageSearch').value.trim().toLowerCase();
+                const filtered = meters.filter(m => {
+                    if (!searchTerm) return true;
+                    return (m.assetNo||'').toLowerCase().includes(searchTerm) ||
+                           (m.name||'').toLowerCase().includes(searchTerm) ||
+                           (m.model||'').toLowerCase().includes(searchTerm) ||
+                           (m.user||'').toLowerCase().includes(searchTerm);
+                });
                 const listEl = document.getElementById('manageMeterList');
-                listEl.innerHTML = meters.map(m => `
+                listEl.innerHTML = filtered.map(m => `
                     <div class="meter-item" data-asset="${m.assetNo}">
                         <div class="meter-avatar">📟</div>
                         <div class="meter-info"><div class="meter-name">${m.name||'未命名'}</div><div class="meter-asset">${m.assetNo} | ${m.model||''}</div></div>
@@ -678,6 +683,7 @@
                     });
                 });
             }
+            document.getElementById('manageSearch').addEventListener('input', renderManageMeterList);
 
             document.getElementById('meterForm').addEventListener('submit', async e => {
                 e.preventDefault();
@@ -713,9 +719,7 @@
                 if (editAssetNo) {
                     const idx = meters.findIndex(m => m.assetNo === editAssetNo);
                     if (idx !== -1) Object.assign(meters[idx], data);
-                } else {
-                    meters.push(data);
-                }
+                } else meters.push(data);
                 await saveMeters(meters);
                 updateStats(); renderManageMeterList(); renderDashboard();
                 document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
@@ -725,13 +729,8 @@
                 document.getElementById('meterForm').reset(); document.getElementById('editMeterId').value = '';
             });
             document.getElementById('btnAddSample').addEventListener('click', async () => {
-                meters.push({
-                    assetNo: 'DEMO-001', name: '数字万用表', model: 'FLUKE-17B', serial: 'SN001', year: '2023',
-                    dept: '实验室', subDept: '电学组', user: '张三', location: 'A柜-3', expireDate: '2025-12-31',
-                    status: 'in-stock'
-                });
-                await saveMeters(meters);
-                updateStats(); renderManageMeterList(); renderDashboard();
+                meters.push({ assetNo: 'DEMO-001', name: '数字万用表', model: 'FLUKE-17B', serial: 'SN001', year: '2023', dept: '实验室', subDept: '电学组', user: '张三', location: 'A柜-3', expireDate: '2025-12-31', status: 'in-stock' });
+                await saveMeters(meters); updateStats(); renderManageMeterList(); renderDashboard();
             });
             document.getElementById('btnClearAll').addEventListener('click', async () => {
                 if (confirm('确定清空所有数据？')) {
@@ -741,17 +740,25 @@
                 }
             });
 
-            // Excel导入
+            // Excel 导入，处理日期
+            function excelSerialToDate(serial) {
+                if (typeof serial === 'number') {
+                    const utcDays = Math.floor(serial - 25569);
+                    const date = new Date(utcDays * 86400 * 1000);
+                    return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+                }
+                return serial;
+            }
+
             document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('excelFileInput').click());
             document.getElementById('excelFileInput').addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
+                const file = e.target.files[0]; if (!file) return;
                 const reader = new FileReader();
                 reader.onload = async (evt) => {
                     const data = new Uint8Array(evt.target.result);
                     const wb = XLSX.read(data, { type: 'array' });
                     const sheet = wb.Sheets[wb.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
                     if (rows.length < 2) { showToast('无数据', 'error'); return; }
                     const headers = rows[0].map(h => String(h).trim());
                     const newMeters = [];
@@ -760,7 +767,7 @@
                         if (!row || !row.length) continue;
                         const obj = { status: 'in-stock' };
                         headers.forEach((h, idx) => {
-                            const val = row[idx] ? String(row[idx]).trim() : '';
+                            const val = row[idx] !== undefined ? String(row[idx]).trim() : '';
                             if (h.includes('企业编号')) obj.assetNo = val;
                             else if (h.includes('型号')) obj.model = val;
                             else if (h.includes('名称')) obj.name = val;
@@ -770,7 +777,7 @@
                             else if (h.includes('总价')) obj.price = val;
                             else if (h.includes('年代')) obj.year = val;
                             else if (h.includes('检定日期')) obj.calibrationDate = val;
-                            else if (h.includes('有效期')) obj.expireDate = val;
+                            else if (h.includes('有效期')) obj.expireDate = val ? excelSerialToDate(val) : '';
                             else if (h.includes('管理状态')) obj.manageStatus = val;
                             else if (h.includes('技术状态')) obj.techStatus = val;
                             else if (h.includes('使用部门')) obj.dept = val;
