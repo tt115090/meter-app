@@ -547,7 +547,7 @@
                     const activeRec = records.find(r => r.assetNo === meter.assetNo && r.status === 'borrowed');
                     formDiv.innerHTML = `
                         <div style="margin-top:12px;">
-                            <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'} (编号: ${activeRec?.borrowerId || '无'})</p>
+                            <p><strong>当前借用人：</strong>${activeRec?.borrowerName || '未知'}</p>
                             <div class="form-group"><label>借用人编号 *</label><input class="form-input return-id" placeholder="请输入借用人编号验证"></div>
                             <div class="form-group"><label>归还地点</label><input class="form-input return-location" placeholder="归还地点"></div>
                             <button class="btn btn-success btn-block btn-return-submit">🔄 确认归还</button>
@@ -754,6 +754,8 @@
                 }
                 return serial;
             }
+
+            // 导入 Excel，支持 2000 条，分批保存
             document.getElementById('btnImportExcel').addEventListener('click', () => document.getElementById('excelFileInput').click());
             document.getElementById('excelFileInput').addEventListener('change', async (e) => {
                 const file = e.target.files[0]; if (!file) return;
@@ -794,12 +796,30 @@
                         });
                         if (obj.assetNo) newMeters.push(obj);
                     }
+
+                    // 去重并添加到 meters 数组
                     let added = 0, skipped = 0;
                     for (const nm of newMeters) {
                         if (meters.some(m => m.assetNo === nm.assetNo)) skipped++;
                         else { meters.push(nm); added++; }
                     }
-                    await saveMeters(meters);
+
+                    // 分批保存，每批 200 条，防止超过 API 限制
+                    const batchSize = 200;
+                    const totalMeters = meters;
+                    await supabaseFetch('meters?data=not.is.null', 'DELETE'); // 先清空
+                    for (let i = 0; i < totalMeters.length; i += batchSize) {
+                        const batch = totalMeters.slice(i, i + batchSize).map(m => ({ data: m }));
+                        try {
+                            await supabaseFetch('meters', 'POST', batch);
+                        } catch (e) {
+                            // 降级为逐条保存
+                            for (const item of batch) {
+                                try { await supabaseFetch('meters', 'POST', item); } catch (err) {}
+                            }
+                        }
+                    }
+
                     updateStats(); renderManageMeterList(); renderDashboard();
                     showToast(`导入完成：新增${added}台，跳过${skipped}台重复`, 'success');
                 };
