@@ -83,6 +83,8 @@
         .filter-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; align-items:center; }
         .filter-row .form-input, .filter-row .form-select { flex:1; min-width:120px; }
         .meter-item .meter-actions { margin-left:auto; display:flex; gap:6px; }
+        .batch-bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+        .batch-bar input[type="checkbox"] { width:18px; height:18px; }
     </style>
 </head>
 <body>
@@ -204,7 +206,12 @@
                 </form>
             </div>
             <div class="card">
-                <div class="card-title">📋 仪表列表（点击编辑，红色删除）</div>
+                <div class="card-title">📋 仪表列表（点击编辑）</div>
+                <div class="batch-bar">
+                    <input type="checkbox" id="selectAll" title="全选/取消">
+                    <span style="font-size:0.9rem;">全选</span>
+                    <button class="btn btn-danger btn-sm" id="btnBatchDelete" style="margin-left:auto;">🗑 批量删除</button>
+                </div>
                 <div style="margin-bottom:10px;">
                     <input type="text" class="form-input" id="manageSearch" placeholder="🔍 搜索资产号/名称/型号...">
                 </div>
@@ -277,8 +284,9 @@
             const ADMIN_PASSWORD = 'admin123';
             let isAdminAuthenticated = false;
             let pendingPageId = null;
-            let pendingDeleteId = null;       // 待删除记录ID
-            let pendingDeleteMeterId = null; // 待删除仪表资产号
+            let pendingDeleteId = null;
+            let pendingDeleteMeterId = null;
+            let pendingBatchDelete = false; // 是否待批量删除
             let meters = [];
             let records = [];
 
@@ -295,7 +303,7 @@
                 c.appendChild(t); setTimeout(() => t.remove(), 2600);
             }
 
-            // 密码弹窗回调（支持管理页进入、记录删除、仪表删除）
+            // 密码弹窗回调
             document.getElementById('pwdConfirm').addEventListener('click', async () => {
                 const pwd = document.getElementById('pwdInput').value;
                 if (pwd !== ADMIN_PASSWORD) { document.getElementById('pwdError').style.display = 'block'; return; }
@@ -307,6 +315,9 @@
                 } else if (pendingDeleteMeterId) {
                     await executeDeleteMeter(pendingDeleteMeterId);
                     pendingDeleteMeterId = null;
+                } else if (pendingBatchDelete) {
+                    await executeBatchDelete();
+                    pendingBatchDelete = false;
                 } else if (pendingPageId) {
                     isAdminAuthenticated = true;
                     switchPage(pendingPageId);
@@ -316,31 +327,28 @@
                 document.getElementById('pwdModal').classList.remove('active');
                 pendingDeleteId = null;
                 pendingDeleteMeterId = null;
+                pendingBatchDelete = false;
                 pendingPageId = null;
             });
 
             function showPwdModalForRecord(id) {
-                pendingDeleteId = id;
-                pendingDeleteMeterId = null;
-                pendingPageId = null;
-                document.getElementById('pwdInput').value = '';
-                document.getElementById('pwdError').style.display = 'none';
+                pendingDeleteId = id; pendingDeleteMeterId = null; pendingBatchDelete = false; pendingPageId = null;
+                document.getElementById('pwdInput').value = ''; document.getElementById('pwdError').style.display = 'none';
                 document.getElementById('pwdModal').classList.add('active');
             }
             function showPwdModalForMeter(assetNo) {
-                pendingDeleteMeterId = assetNo;
-                pendingDeleteId = null;
-                pendingPageId = null;
-                document.getElementById('pwdInput').value = '';
-                document.getElementById('pwdError').style.display = 'none';
+                pendingDeleteMeterId = assetNo; pendingDeleteId = null; pendingBatchDelete = false; pendingPageId = null;
+                document.getElementById('pwdInput').value = ''; document.getElementById('pwdError').style.display = 'none';
                 document.getElementById('pwdModal').classList.add('active');
             }
             function showPwdModalForPage(id) {
-                pendingPageId = id;
-                pendingDeleteId = null;
-                pendingDeleteMeterId = null;
-                document.getElementById('pwdInput').value = '';
-                document.getElementById('pwdError').style.display = 'none';
+                pendingPageId = id; pendingDeleteId = null; pendingDeleteMeterId = null; pendingBatchDelete = false;
+                document.getElementById('pwdInput').value = ''; document.getElementById('pwdError').style.display = 'none';
+                document.getElementById('pwdModal').classList.add('active');
+            }
+            function showPwdModalForBatch() {
+                pendingBatchDelete = true; pendingDeleteId = null; pendingDeleteMeterId = null; pendingPageId = null;
+                document.getElementById('pwdInput').value = ''; document.getElementById('pwdError').style.display = 'none';
                 document.getElementById('pwdModal').classList.add('active');
             }
 
@@ -361,17 +369,29 @@
             async function executeDeleteMeter(assetNo) {
                 const meterIdx = meters.findIndex(m => m.assetNo === assetNo);
                 if (meterIdx === -1) { showToast('仪表不存在', 'error'); return; }
-                // 删除所有关联的借用记录
                 records = records.filter(r => r.assetNo !== assetNo);
-                // 删除仪表
                 meters.splice(meterIdx, 1);
                 await saveMeters(meters);
                 await saveRecords(records);
-                updateStats();
-                renderDashboard();
-                renderManageMeterList();
-                renderRecords();
+                updateStats(); renderDashboard(); renderManageMeterList(); renderRecords();
                 showToast('仪表已删除', 'success');
+            }
+
+            async function executeBatchDelete() {
+                const checkboxes = document.querySelectorAll('#manageMeterList input[type="checkbox"]:checked');
+                const toDelete = Array.from(checkboxes).map(cb => cb.dataset.asset);
+                if (toDelete.length === 0) { showToast('未选择任何仪表', 'error'); return; }
+                if (!confirm(`确定删除选中的 ${toDelete.length} 台仪表吗？`)) return;
+                for (const assetNo of toDelete) {
+                    records = records.filter(r => r.assetNo !== assetNo);
+                    const idx = meters.findIndex(m => m.assetNo === assetNo);
+                    if (idx !== -1) meters.splice(idx, 1);
+                }
+                await saveMeters(meters);
+                await saveRecords(records);
+                updateStats(); renderManageMeterList(); renderDashboard(); renderRecords();
+                document.getElementById('selectAll').checked = false;
+                showToast(`已删除 ${toDelete.length} 台仪表`, 'success');
             }
 
             window.deleteRecordWithAuth = (id) => showPwdModalForRecord(id);
@@ -689,6 +709,7 @@
                 const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='借用记录.csv'; a.click(); URL.revokeObjectURL(url);
             });
 
+            // 管理页渲染（含批量选择）
             function renderManageMeterList() {
                 const searchTerm = document.getElementById('manageSearch').value.trim().toLowerCase();
                 const filtered = meters.filter(m => {
@@ -701,6 +722,7 @@
                 const listEl = document.getElementById('manageMeterList');
                 listEl.innerHTML = filtered.map(m => `
                     <div class="meter-item" data-asset="${m.assetNo}">
+                        <input type="checkbox" class="meter-checkbox" data-asset="${m.assetNo}" style="margin-right:10px;" onclick="event.stopPropagation()">
                         <div class="meter-avatar">📟</div>
                         <div class="meter-info"><div class="meter-name">${m.name||'未命名'}</div><div class="meter-asset">${m.assetNo} | ${m.model||''}</div></div>
                         <span class="meter-status-tag ${m.status==='in-stock'?'tag-in-stock':'tag-borrowed'}">${m.status==='in-stock'?'在库':'借出'}</span>
@@ -708,8 +730,10 @@
                             <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteMeterWithAuth('${m.assetNo}')">🗑 删除</button>
                         </div>
                     </div>`).join('');
+                // 编辑事件（点击非按钮区域）
                 listEl.querySelectorAll('.meter-item').forEach(item => {
-                    item.addEventListener('click', function() {
+                    item.addEventListener('click', function(e) {
+                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
                         const assetNo = this.dataset.asset;
                         const meter = meters.find(m => m.assetNo === assetNo);
                         if (!meter) return;
@@ -736,8 +760,14 @@
                         document.getElementById('formSecurityCheck').value = meter.securityCheck || '';
                     });
                 });
+                // 全选逻辑
+                document.getElementById('selectAll').onchange = function() {
+                    const checkboxes = document.querySelectorAll('#manageMeterList input[type="checkbox"]');
+                    checkboxes.forEach(cb => cb.checked = this.checked);
+                };
             }
             document.getElementById('manageSearch').addEventListener('input', renderManageMeterList);
+            document.getElementById('btnBatchDelete').addEventListener('click', () => showPwdModalForBatch());
 
             document.getElementById('meterForm').addEventListener('submit', async e => {
                 e.preventDefault();
